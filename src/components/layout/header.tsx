@@ -6,9 +6,16 @@ import { SidebarTrigger } from '@/components/ui/sidebar'
 type HeaderProps = React.HTMLAttributes<HTMLElement> & {
   fixed?: boolean
   ref?: React.Ref<HTMLElement>
+  breadcrumbs?: React.ReactNode
 }
 
-export function Header({ className, fixed, children, ...props }: HeaderProps) {
+export function Header({
+  className,
+  fixed,
+  children,
+  breadcrumbs,
+  ...props
+}: HeaderProps) {
   const [offset, setOffset] = useState(0)
 
   useEffect(() => {
@@ -43,6 +50,7 @@ export function Header({ className, fixed, children, ...props }: HeaderProps) {
       >
         <SidebarTrigger variant='outline' className='max-md:scale-125' />
         <Separator orientation='vertical' className='h-6' />
+        {breadcrumbs}
         {children}
       </div>
     </header>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Fragment } from 'react/jsx-runtime'
+import { Link } from '@tanstack/react-router'
 import { format } from 'date-fns'
 import {
   ArrowLeft,
@@ -16,6 +17,14 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
@@ -66,7 +75,23 @@ export function Chats() {
   return (
     <>
       {/* ===== Top Heading ===== */}
-      <Header>
+      <Header
+        breadcrumbs={
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link to='/'>Home</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Chats</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        }
+      >
         <Search />
         <div className='ms-auto flex items-center space-x-4'>
           <ThemeSwitch />

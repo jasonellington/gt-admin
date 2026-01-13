@@ -1,5 +1,13 @@
-import { Outlet } from '@tanstack/react-router'
+import { Link, Outlet, useLocation } from '@tanstack/react-router'
 import { Monitor, Bell, Palette, Wrench, UserCog } from 'lucide-react'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
 import { Separator } from '@/components/ui/separator'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { Header } from '@/components/layout/header'
@@ -37,11 +45,52 @@ const sidebarNavItems = [
   },
 ]
 
+const settingsPageTitles: Record<string, string> = {
+  '/settings': 'Profile',
+  '/settings/account': 'Account',
+  '/settings/appearance': 'Appearance',
+  '/settings/notifications': 'Notifications',
+  '/settings/display': 'Display',
+}
+
 export function Settings() {
+  const location = useLocation()
+  const currentPageTitle = settingsPageTitles[location.pathname] || 'Profile'
+
   return (
     <>
       {/* ===== Top Heading ===== */}
-      <Header>
+      <Header
+        breadcrumbs={
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link to='/'>Home</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              {location.pathname === '/settings' ? (
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Settings</BreadcrumbPage>
+                </BreadcrumbItem>
+              ) : (
+                <>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link to='/settings'>Settings</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>{currentPageTitle}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </>
+              )}
+            </BreadcrumbList>
+          </Breadcrumb>
+        }
+      >
         <Search />
         <div className='ms-auto flex items-center space-x-4'>
           <ThemeSwitch />
