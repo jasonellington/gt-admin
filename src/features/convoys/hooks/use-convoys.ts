@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 export interface Convoy {
   id: string
@@ -24,15 +24,23 @@ export function useConvoys() {
   const [convoys, setConvoys] = useState<Convoy[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   const fetchConvoys = useCallback(async () => {
+    // Cancel any in-flight request
+    abortControllerRef.current?.abort()
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
     try {
-      const response = await fetch(API_URL)
+      const response = await fetch(API_URL, { signal: controller.signal })
       if (!response.ok) throw new Error('Failed to fetch')
       const data = await response.json()
       setConvoys(data)
       setError(null)
     } catch (err) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === 'AbortError') return
       setError('Failed to fetch convoys')
     } finally {
       setLoading(false)
@@ -42,7 +50,10 @@ export function useConvoys() {
   useEffect(() => {
     fetchConvoys()
     const interval = setInterval(fetchConvoys, POLL_INTERVAL)
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(interval)
+      abortControllerRef.current?.abort()
+    }
   }, [fetchConvoys])
 
   const createConvoy = useCallback(async (name: string, issues: string[]) => {
@@ -65,19 +76,38 @@ export function useConvoys() {
 
 export function useConvoyDetail(convoyId: string | null) {
   const [convoy, setConvoy] = useState<ConvoyDetail | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(!!convoyId)
   const [error, setError] = useState<string | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   const fetchConvoy = useCallback(async () => {
-    if (!convoyId) return
+    // Cancel any in-flight request
+    abortControllerRef.current?.abort()
+
+    if (!convoyId) {
+      setConvoy(null)
+      setLoading(false)
+      setError(null)
+      return
+    }
+
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
     setLoading(true)
+    setConvoy(null) // Clear stale data when fetching new convoy
+    setError(null)
+
     try {
-      const response = await fetch(`${API_URL}/${convoyId}`)
+      const response = await fetch(`${API_URL}/${convoyId}`, {
+        signal: controller.signal,
+      })
       if (!response.ok) throw new Error('Failed to fetch')
       const data = await response.json()
       setConvoy(data)
-      setError(null)
     } catch (err) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === 'AbortError') return
       setError('Failed to fetch convoy details')
     } finally {
       setLoading(false)
@@ -86,6 +116,9 @@ export function useConvoyDetail(convoyId: string | null) {
 
   useEffect(() => {
     fetchConvoy()
+    return () => {
+      abortControllerRef.current?.abort()
+    }
   }, [fetchConvoy])
 
   return { convoy, loading, error, refetch: fetchConvoy }
