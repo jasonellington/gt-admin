@@ -1,5 +1,6 @@
 import {
   Construction,
+  Crown,
   LayoutDashboard,
   Monitor,
   Bug,
@@ -77,6 +78,11 @@ export const sidebarData: SidebarData = {
           title: 'Users',
           url: '/users',
           icon: Users,
+        },
+        {
+          title: 'Mayor',
+          url: '/mayor',
+          icon: Crown,
         },
         {
           title: 'Secured by Clerk',
