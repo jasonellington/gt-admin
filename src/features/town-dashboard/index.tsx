@@ -1,6 +1,12 @@
 import { useMemo } from 'react'
 import { Building2, Server, Users } from 'lucide-react'
 import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+} from '@/components/ui/breadcrumb'
+import {
   Card,
   CardContent,
   CardHeader,
@@ -41,7 +47,17 @@ export function TownDashboard() {
 
   return (
     <>
-      <Header>
+      <Header
+        breadcrumbs={
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbPage>Dashboard</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        }
+      >
         <div className='ms-auto flex items-center space-x-4'>
           <Search />
           <ThemeSwitch />

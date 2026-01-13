@@ -1,11 +1,20 @@
 import { useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import { Truck } from 'lucide-react'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
+import { Card, CardContent } from '@/components/ui/card'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { Card, CardContent } from '@/components/ui/card'
 import { ConvoyCard } from './components/convoy-card'
 import { ConvoyDetailDialog } from './components/convoy-detail-dialog'
 import { NewConvoyDialog } from './components/new-convoy-dialog'
@@ -30,7 +39,23 @@ export function ConvoysPage() {
 
   return (
     <>
-      <Header>
+      <Header
+        breadcrumbs={
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link to='/town'>Dashboard</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Convoys</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        }
+      >
         <div className="ms-auto flex items-center space-x-4">
           <Search />
           <ThemeSwitch />

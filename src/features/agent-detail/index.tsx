@@ -1,6 +1,15 @@
 import { useCallback, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, Circle, Home, Truck } from 'lucide-react'
+import { Circle } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -9,7 +18,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -176,7 +184,33 @@ function AgentDetailView({
 
   return (
     <>
-      <Header>
+      <Header
+        breadcrumbs={
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link to='/town'>Dashboard</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              {from === 'convoy' && convoyId && (
+                <>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link to='/convoys'>Convoys</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                </>
+              )}
+              <BreadcrumbItem>
+                <BreadcrumbPage>{name}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        }
+      >
         <div className='ms-auto flex items-center space-x-4'>
           <Search />
           <ThemeSwitch />
@@ -185,27 +219,6 @@ function AgentDetailView({
       </Header>
 
       <Main>
-        {/* Breadcrumbs */}
-        <nav className='mb-4 flex items-center text-sm text-muted-foreground'>
-          <Link to='/town' className='flex items-center hover:text-foreground transition-colors'>
-            <Home className='mr-1 h-4 w-4' />
-            Dashboard
-          </Link>
-          {from === 'convoy' && convoyId && (
-            <>
-              <ChevronRight className='mx-2 h-4 w-4' />
-              <Link to='/convoys' className='flex items-center hover:text-foreground transition-colors'>
-                <Truck className='mr-1 h-4 w-4' />
-                Convoys
-              </Link>
-              <ChevronRight className='mx-2 h-4 w-4' />
-              <span className='font-mono text-xs'>{convoyId}</span>
-            </>
-          )}
-          <ChevronRight className='mx-2 h-4 w-4' />
-          <span className='text-foreground font-medium'>{name}</span>
-        </nav>
-
         {/* Agent Header */}
         <div className='mb-6 flex items-start justify-between'>
           <div className='flex items-center gap-4'>
