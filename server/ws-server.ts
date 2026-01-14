@@ -4,6 +4,296 @@ import { exec } from 'child_process'
 import { parse } from 'url'
 
 const PORT = 3001
+const STATUS_POLL_INTERVAL = 2500 // Poll gt status every 2.5 seconds
+
+// Town status interface
+interface TownStatus {
+  town: {
+    name: string
+    path: string
+  }
+  overseer: {
+    name: string
+    email: string
+  }
+  townAgents: Array<{
+    name: string
+    type: string
+    icon: string
+    online: boolean
+    mailCount: number
+  }>
+  rigs: Array<{
+    name: string
+    witness: { online: boolean; mailCount: number }
+    refinery: { online: boolean; mqCount: number }
+    crew: Array<{ name: string; online: boolean }>
+    polecats: Array<{ name: string; online: boolean }>
+  }>
+  convoys: Array<{
+    id: string
+    name: string
+    status: 'active' | 'completed'
+    completed: number
+    total: number
+  }>
+}
+
+// ============================================================================
+// Real-time Status Broadcasting
+// ============================================================================
+
+// Clients subscribed to real-time status updates
+const statusSubscribers = new Set<WebSocket>()
+
+// Last known status for diffing
+let lastTownStatus: TownStatus | null = null
+
+// Compute diff between two status objects
+function computeStatusDiff(
+  oldStatus: TownStatus | null,
+  newStatus: TownStatus
+): StatusChange[] {
+  const changes: StatusChange[] = []
+
+  if (!oldStatus) {
+    // First status - send everything
+    changes.push({ type: 'full', data: newStatus })
+    return changes
+  }
+
+  // Check town agents
+  for (const newAgent of newStatus.townAgents) {
+    const oldAgent = oldStatus.townAgents.find((a) => a.name === newAgent.name)
+    if (!oldAgent) {
+      changes.push({ type: 'agent-added', data: newAgent })
+    } else if (oldAgent.online !== newAgent.online) {
+      changes.push({
+        type: 'agent-state',
+        data: { name: newAgent.name, online: newAgent.online, wasOnline: oldAgent.online },
+      })
+    } else if (oldAgent.mailCount !== newAgent.mailCount) {
+      changes.push({
+        type: 'agent-mail',
+        data: { name: newAgent.name, mailCount: newAgent.mailCount, previousCount: oldAgent.mailCount },
+      })
+    }
+  }
+
+  // Check rigs
+  for (const newRig of newStatus.rigs) {
+    const oldRig = oldStatus.rigs.find((r) => r.name === newRig.name)
+    if (!oldRig) {
+      changes.push({ type: 'rig-added', data: newRig })
+      continue
+    }
+
+    // Witness changes
+    if (oldRig.witness.online !== newRig.witness.online) {
+      changes.push({
+        type: 'witness-state',
+        data: { rig: newRig.name, online: newRig.witness.online },
+      })
+    }
+    if (oldRig.witness.mailCount !== newRig.witness.mailCount) {
+      changes.push({
+        type: 'witness-mail',
+        data: { rig: newRig.name, mailCount: newRig.witness.mailCount },
+      })
+    }
+
+    // Refinery changes
+    if (oldRig.refinery.online !== newRig.refinery.online) {
+      changes.push({
+        type: 'refinery-state',
+        data: { rig: newRig.name, online: newRig.refinery.online },
+      })
+    }
+    if (oldRig.refinery.mqCount !== newRig.refinery.mqCount) {
+      changes.push({
+        type: 'refinery-mq',
+        data: { rig: newRig.name, mqCount: newRig.refinery.mqCount, previousCount: oldRig.refinery.mqCount },
+      })
+    }
+
+    // Polecat changes
+    const oldPolecatNames = new Set(oldRig.polecats.map((p) => p.name))
+    const newPolecatNames = new Set(newRig.polecats.map((p) => p.name))
+
+    for (const polecat of newRig.polecats) {
+      if (!oldPolecatNames.has(polecat.name)) {
+        changes.push({
+          type: 'polecat-spawned',
+          data: { rig: newRig.name, name: polecat.name, online: polecat.online },
+        })
+      } else {
+        const oldPolecat = oldRig.polecats.find((p) => p.name === polecat.name)
+        if (oldPolecat && oldPolecat.online !== polecat.online) {
+          changes.push({
+            type: 'polecat-state',
+            data: { rig: newRig.name, name: polecat.name, online: polecat.online },
+          })
+        }
+      }
+    }
+
+    for (const oldPolecat of oldRig.polecats) {
+      if (!newPolecatNames.has(oldPolecat.name)) {
+        changes.push({
+          type: 'polecat-completed',
+          data: { rig: newRig.name, name: oldPolecat.name },
+        })
+      }
+    }
+
+    // Crew changes
+    const oldCrewNames = new Set(oldRig.crew.map((c) => c.name))
+    const newCrewNames = new Set(newRig.crew.map((c) => c.name))
+
+    for (const crew of newRig.crew) {
+      if (!oldCrewNames.has(crew.name)) {
+        changes.push({
+          type: 'crew-joined',
+          data: { rig: newRig.name, name: crew.name, online: crew.online },
+        })
+      } else {
+        const oldCrew = oldRig.crew.find((c) => c.name === crew.name)
+        if (oldCrew && oldCrew.online !== crew.online) {
+          changes.push({
+            type: 'crew-state',
+            data: { rig: newRig.name, name: crew.name, online: crew.online },
+          })
+        }
+      }
+    }
+
+    for (const oldCrew of oldRig.crew) {
+      if (!newCrewNames.has(oldCrew.name)) {
+        changes.push({
+          type: 'crew-left',
+          data: { rig: newRig.name, name: oldCrew.name },
+        })
+      }
+    }
+  }
+
+  // Check convoys
+  const oldConvoyIds = new Set(oldStatus.convoys.map((c) => c.id))
+  const newConvoyIds = new Set(newStatus.convoys.map((c) => c.id))
+
+  for (const convoy of newStatus.convoys) {
+    if (!oldConvoyIds.has(convoy.id)) {
+      changes.push({ type: 'convoy-created', data: convoy })
+    } else {
+      const oldConvoy = oldStatus.convoys.find((c) => c.id === convoy.id)
+      if (oldConvoy) {
+        if (oldConvoy.completed !== convoy.completed || oldConvoy.total !== convoy.total) {
+          changes.push({
+            type: 'convoy-progress',
+            data: {
+              id: convoy.id,
+              name: convoy.name,
+              completed: convoy.completed,
+              total: convoy.total,
+              previousCompleted: oldConvoy.completed,
+            },
+          })
+        }
+        if (oldConvoy.status !== convoy.status) {
+          changes.push({
+            type: 'convoy-status',
+            data: { id: convoy.id, status: convoy.status, previousStatus: oldConvoy.status },
+          })
+        }
+      }
+    }
+  }
+
+  for (const oldConvoy of oldStatus.convoys) {
+    if (!newConvoyIds.has(oldConvoy.id)) {
+      changes.push({ type: 'convoy-removed', data: { id: oldConvoy.id, name: oldConvoy.name } })
+    }
+  }
+
+  return changes
+}
+
+// Broadcast status changes to all subscribers
+function broadcastStatusChanges(changes: StatusChange[], fullStatus: TownStatus) {
+  if (statusSubscribers.size === 0) return
+
+  const message = JSON.stringify({
+    type: 'status-update',
+    changes,
+    timestamp: Date.now(),
+    // Include full status for clients that need it
+    fullStatus: changes.some((c) => c.type === 'full') ? fullStatus : undefined,
+  })
+
+  Array.from(statusSubscribers).forEach((ws) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(message)
+    }
+  })
+}
+
+// Start polling for status updates
+let statusPollInterval: NodeJS.Timeout | null = null
+
+async function pollAndBroadcastStatus() {
+  try {
+    const newStatus = await getTownStatus()
+    const changes = computeStatusDiff(lastTownStatus, newStatus)
+
+    if (changes.length > 0) {
+      broadcastStatusChanges(changes, newStatus)
+    }
+
+    lastTownStatus = newStatus
+  } catch (error) {
+    console.error('Error polling status:', error)
+  }
+}
+
+function startStatusPolling() {
+  if (statusPollInterval) return
+  console.log('Starting real-time status polling...')
+  pollAndBroadcastStatus() // Initial poll
+  statusPollInterval = setInterval(pollAndBroadcastStatus, STATUS_POLL_INTERVAL)
+}
+
+function stopStatusPolling() {
+  if (statusPollInterval) {
+    clearInterval(statusPollInterval)
+    statusPollInterval = null
+    console.log('Stopped real-time status polling')
+  }
+}
+
+// Status change types
+interface StatusChange {
+  type:
+    | 'full'
+    | 'agent-added'
+    | 'agent-state'
+    | 'agent-mail'
+    | 'rig-added'
+    | 'witness-state'
+    | 'witness-mail'
+    | 'refinery-state'
+    | 'refinery-mq'
+    | 'polecat-spawned'
+    | 'polecat-state'
+    | 'polecat-completed'
+    | 'crew-joined'
+    | 'crew-state'
+    | 'crew-left'
+    | 'convoy-created'
+    | 'convoy-progress'
+    | 'convoy-status'
+    | 'convoy-removed'
+  data: unknown
+}
 
 // Known agents to check status for
 const KNOWN_AGENTS = [
@@ -341,8 +631,8 @@ async function getConvoyList(): Promise<Array<{
   id: string
   name: string
   status: 'active' | 'completed'
-  issueCount: number
-  completedCount: number
+  completed: number
+  total: number
 }>> {
   try {
     const output = await runCommand('gt convoy status --json 2>/dev/null || echo "[]"')
@@ -366,16 +656,16 @@ async function getConvoyList(): Promise<Array<{
             id: c.id,
             name: c.title,
             status: c.status === 'open' ? 'active' as const : 'completed' as const,
-            issueCount: detail.total || 0,
-            completedCount: detail.completed || 0,
+            total: detail.total || 0,
+            completed: detail.completed || 0,
           }
         } catch {
           return {
             id: c.id,
             name: c.title,
             status: c.status === 'open' ? 'active' as const : 'completed' as const,
-            issueCount: 0,
-            completedCount: 0,
+            total: 0,
+            completed: 0,
           }
         }
       })
@@ -433,39 +723,6 @@ async function createConvoy(name: string, issues: string[]): Promise<{ id: strin
     id: match?.[0] || 'unknown',
     message: output.trim(),
   }
-}
-
-// Town status interface
-interface TownStatus {
-  town: {
-    name: string
-    path: string
-  }
-  overseer: {
-    name: string
-    email: string
-  }
-  townAgents: Array<{
-    name: string
-    type: string
-    icon: string
-    online: boolean
-    mailCount: number
-  }>
-  rigs: Array<{
-    name: string
-    witness: { online: boolean; mailCount: number }
-    refinery: { online: boolean; mqCount: number }
-    crew: Array<{ name: string; online: boolean }>
-    polecats: Array<{ name: string; online: boolean }>
-  }>
-  convoys: Array<{
-    id: string
-    name: string
-    status: 'active' | 'completed'
-    completed: number
-    total: number
-  }>
 }
 
 // Get full town status by parsing gt status output
@@ -746,12 +1003,84 @@ const wss = new WebSocketServer({ server })
 
 server.listen(PORT, () => {
   console.log(`Gas Town server running on http://localhost:${PORT}`)
-  console.log(`  WebSocket: ws://localhost:${PORT}?agent=<name>&type=<type>&rig=<rig>`)
-  console.log(`  REST API:  http://localhost:${PORT}/api/agents/status`)
+  console.log(`  Agent Terminal: ws://localhost:${PORT}?agent=<name>&type=<type>&rig=<rig>`)
+  console.log(`  Status Stream:  ws://localhost:${PORT}?subscribe=status`)
+  console.log(`  REST API:       http://localhost:${PORT}/api/agents/status`)
 })
 
 wss.on('connection', async (ws, req) => {
   const { query } = parse(req.url || '', true)
+  const subscribe = query.subscribe as string
+
+  // Handle real-time status subscriptions
+  if (subscribe === 'status') {
+    console.log('Status subscriber connected')
+    statusSubscribers.add(ws)
+
+    // Start polling if this is the first subscriber
+    if (statusSubscribers.size === 1) {
+      startStatusPolling()
+    }
+
+    // Send current status immediately
+    if (lastTownStatus) {
+      ws.send(JSON.stringify({
+        type: 'status-update',
+        changes: [{ type: 'full', data: lastTownStatus }],
+        timestamp: Date.now(),
+        fullStatus: lastTownStatus,
+      }))
+    } else {
+      // Fetch and send initial status
+      try {
+        const status = await getTownStatus()
+        lastTownStatus = status
+        ws.send(JSON.stringify({
+          type: 'status-update',
+          changes: [{ type: 'full', data: status }],
+          timestamp: Date.now(),
+          fullStatus: status,
+        }))
+      } catch (error) {
+        ws.send(JSON.stringify({
+          type: 'error',
+          message: 'Failed to fetch initial status',
+        }))
+      }
+    }
+
+    ws.on('close', () => {
+      console.log('Status subscriber disconnected')
+      statusSubscribers.delete(ws)
+      // Stop polling if no more subscribers
+      if (statusSubscribers.size === 0) {
+        stopStatusPolling()
+      }
+    })
+
+    ws.on('error', () => {
+      statusSubscribers.delete(ws)
+      if (statusSubscribers.size === 0) {
+        stopStatusPolling()
+      }
+    })
+
+    // Handle ping/pong for keepalive
+    ws.on('message', (data) => {
+      try {
+        const message = JSON.parse(data.toString())
+        if (message.type === 'ping') {
+          ws.send(JSON.stringify({ type: 'pong' }))
+        }
+      } catch {
+        // Ignore invalid messages
+      }
+    })
+
+    return
+  }
+
+  // Handle agent terminal connections (existing behavior)
   const agentName = query.agent as string
   const agentType = (query.type as AgentType) || 'polecat'
   const rig = (query.rig as string) || null
@@ -934,10 +1263,10 @@ wss.on('connection', async (ws, req) => {
 
 process.on('SIGINT', () => {
   console.log('\nShutting down...')
-  for (const [ws, state] of clients) {
+  clients.forEach((state, ws) => {
     stopPolling(state)
     ws.close()
-  }
+  })
   wss.close()
   process.exit(0)
 })
