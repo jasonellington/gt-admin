@@ -26,8 +26,10 @@ import { Route as authSignInRouteImport } from './routes/(auth)/sign-in'
 import { Route as authOtpRouteImport } from './routes/(auth)/otp'
 import { Route as authForgotPasswordRouteImport } from './routes/(auth)/forgot-password'
 import { Route as AuthenticatedMayorIndexRouteImport } from './routes/_authenticated/mayor/index'
+import { Route as AuthenticatedAgentsIndexRouteImport } from './routes/_authenticated/agents/index'
 import { Route as AuthenticatedAgentsAgentIdRouteImport } from './routes/_authenticated/agents/$agentId'
 import { Route as AuthenticatedRigsRigIdIndexRouteImport } from './routes/_authenticated/rigs/$rigId/index'
+import { Route as AuthenticatedRigsRigIdMergeQueueRouteImport } from './routes/_authenticated/rigs/$rigId/merge-queue'
 import { Route as AuthenticatedRigsRigIdCrewCrewIdRouteImport } from './routes/_authenticated/rigs/$rigId/crew/$crewId'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -114,6 +116,12 @@ const AuthenticatedMayorIndexRoute = AuthenticatedMayorIndexRouteImport.update({
   path: '/mayor/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAgentsIndexRoute =
+  AuthenticatedAgentsIndexRouteImport.update({
+    id: '/agents/',
+    path: '/agents/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAgentsAgentIdRoute =
   AuthenticatedAgentsAgentIdRouteImport.update({
     id: '/agents/$agentId',
@@ -124,6 +132,12 @@ const AuthenticatedRigsRigIdIndexRoute =
   AuthenticatedRigsRigIdIndexRouteImport.update({
     id: '/rigs/$rigId/',
     path: '/rigs/$rigId/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedRigsRigIdMergeQueueRoute =
+  AuthenticatedRigsRigIdMergeQueueRouteImport.update({
+    id: '/rigs/$rigId/merge-queue',
+    path: '/rigs/$rigId/merge-queue',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedRigsRigIdCrewCrewIdRoute =
@@ -150,7 +164,9 @@ export interface FileRoutesByFullPath {
   '/town': typeof AuthenticatedTownRoute
   '/': typeof AuthenticatedIndexRoute
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
+  '/agents': typeof AuthenticatedAgentsIndexRoute
   '/mayor': typeof AuthenticatedMayorIndexRoute
+  '/rigs/$rigId/merge-queue': typeof AuthenticatedRigsRigIdMergeQueueRoute
   '/rigs/$rigId': typeof AuthenticatedRigsRigIdIndexRoute
   '/rigs/$rigId/crew/$crewId': typeof AuthenticatedRigsRigIdCrewCrewIdRoute
 }
@@ -171,7 +187,9 @@ export interface FileRoutesByTo {
   '/town': typeof AuthenticatedTownRoute
   '/': typeof AuthenticatedIndexRoute
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
+  '/agents': typeof AuthenticatedAgentsIndexRoute
   '/mayor': typeof AuthenticatedMayorIndexRoute
+  '/rigs/$rigId/merge-queue': typeof AuthenticatedRigsRigIdMergeQueueRoute
   '/rigs/$rigId': typeof AuthenticatedRigsRigIdIndexRoute
   '/rigs/$rigId/crew/$crewId': typeof AuthenticatedRigsRigIdCrewCrewIdRoute
 }
@@ -194,7 +212,9 @@ export interface FileRoutesById {
   '/_authenticated/town': typeof AuthenticatedTownRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
+  '/_authenticated/agents/': typeof AuthenticatedAgentsIndexRoute
   '/_authenticated/mayor/': typeof AuthenticatedMayorIndexRoute
+  '/_authenticated/rigs/$rigId/merge-queue': typeof AuthenticatedRigsRigIdMergeQueueRoute
   '/_authenticated/rigs/$rigId/': typeof AuthenticatedRigsRigIdIndexRoute
   '/_authenticated/rigs/$rigId/crew/$crewId': typeof AuthenticatedRigsRigIdCrewCrewIdRoute
 }
@@ -217,7 +237,9 @@ export interface FileRouteTypes {
     | '/town'
     | '/'
     | '/agents/$agentId'
+    | '/agents'
     | '/mayor'
+    | '/rigs/$rigId/merge-queue'
     | '/rigs/$rigId'
     | '/rigs/$rigId/crew/$crewId'
   fileRoutesByTo: FileRoutesByTo
@@ -238,7 +260,9 @@ export interface FileRouteTypes {
     | '/town'
     | '/'
     | '/agents/$agentId'
+    | '/agents'
     | '/mayor'
+    | '/rigs/$rigId/merge-queue'
     | '/rigs/$rigId'
     | '/rigs/$rigId/crew/$crewId'
   id:
@@ -260,7 +284,9 @@ export interface FileRouteTypes {
     | '/_authenticated/town'
     | '/_authenticated/'
     | '/_authenticated/agents/$agentId'
+    | '/_authenticated/agents/'
     | '/_authenticated/mayor/'
+    | '/_authenticated/rigs/$rigId/merge-queue'
     | '/_authenticated/rigs/$rigId/'
     | '/_authenticated/rigs/$rigId/crew/$crewId'
   fileRoutesById: FileRoutesById
@@ -400,6 +426,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMayorIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/agents/': {
+      id: '/_authenticated/agents/'
+      path: '/agents'
+      fullPath: '/agents'
+      preLoaderRoute: typeof AuthenticatedAgentsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/agents/$agentId': {
       id: '/_authenticated/agents/$agentId'
       path: '/agents/$agentId'
@@ -412,6 +445,13 @@ declare module '@tanstack/react-router' {
       path: '/rigs/$rigId'
       fullPath: '/rigs/$rigId'
       preLoaderRoute: typeof AuthenticatedRigsRigIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/rigs/$rigId/merge-queue': {
+      id: '/_authenticated/rigs/$rigId/merge-queue'
+      path: '/rigs/$rigId/merge-queue'
+      fullPath: '/rigs/$rigId/merge-queue'
+      preLoaderRoute: typeof AuthenticatedRigsRigIdMergeQueueRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/rigs/$rigId/crew/$crewId': {
@@ -431,7 +471,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTownRoute: typeof AuthenticatedTownRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAgentsAgentIdRoute: typeof AuthenticatedAgentsAgentIdRoute
+  AuthenticatedAgentsIndexRoute: typeof AuthenticatedAgentsIndexRoute
   AuthenticatedMayorIndexRoute: typeof AuthenticatedMayorIndexRoute
+  AuthenticatedRigsRigIdMergeQueueRoute: typeof AuthenticatedRigsRigIdMergeQueueRoute
   AuthenticatedRigsRigIdIndexRoute: typeof AuthenticatedRigsRigIdIndexRoute
   AuthenticatedRigsRigIdCrewCrewIdRoute: typeof AuthenticatedRigsRigIdCrewCrewIdRoute
 }
@@ -443,7 +485,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTownRoute: AuthenticatedTownRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedAgentsAgentIdRoute: AuthenticatedAgentsAgentIdRoute,
+  AuthenticatedAgentsIndexRoute: AuthenticatedAgentsIndexRoute,
   AuthenticatedMayorIndexRoute: AuthenticatedMayorIndexRoute,
+  AuthenticatedRigsRigIdMergeQueueRoute: AuthenticatedRigsRigIdMergeQueueRoute,
   AuthenticatedRigsRigIdIndexRoute: AuthenticatedRigsRigIdIndexRoute,
   AuthenticatedRigsRigIdCrewCrewIdRoute: AuthenticatedRigsRigIdCrewCrewIdRoute,
 }
