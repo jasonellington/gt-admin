@@ -1,4 +1,4 @@
-import { Building2, Server, Truck, Users } from 'lucide-react'
+import { Building2, GitMerge, LayoutDashboard, Server, Truck, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Breadcrumb,
@@ -16,12 +16,14 @@ import {
 } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { useTownStatus } from './hooks/use-town-status'
+import { WorkQueueTab } from './components/work-queue-tab'
 
 function StatusIndicator({ online }: { online: boolean }) {
   return (
@@ -141,8 +143,21 @@ export function TownDashboard() {
           </p>
         </div>
 
-        {/* Summary Cards */}
-        <div className='mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+        <Tabs defaultValue='overview' className='space-y-4'>
+          <TabsList>
+            <TabsTrigger value='overview'>
+              <LayoutDashboard className='mr-2 h-4 w-4' />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value='work-queue'>
+              <GitMerge className='mr-2 h-4 w-4' />
+              Work Queue
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value='overview' className='space-y-6'>
+            {/* Summary Cards */}
+            <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
           <Card>
             <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
               <CardTitle className='text-sm font-medium'>Town</CardTitle>
@@ -196,8 +211,8 @@ export function TownDashboard() {
           </Card>
         </div>
 
-        {/* Town Agents Section */}
-        <div className='mb-6'>
+            {/* Town Agents Section */}
+            <div>
           <Card>
             <CardHeader>
               <CardTitle>Town Agents</CardTitle>
@@ -228,8 +243,8 @@ export function TownDashboard() {
           </Card>
         </div>
 
-        {/* Active Convoys with Progress */}
-        <div className='mb-6'>
+            {/* Active Convoys with Progress */}
+            <div>
           <Card>
             <CardHeader>
               <CardTitle>Active Convoys</CardTitle>
@@ -275,8 +290,8 @@ export function TownDashboard() {
           </Card>
         </div>
 
-        {/* Rigs Section */}
-        <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+            {/* Rigs Section */}
+            <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
           {status.rigs.map((rig) => (
             <Card key={rig.name}>
               <CardHeader>
@@ -365,6 +380,12 @@ export function TownDashboard() {
             </Card>
           ))}
         </div>
+          </TabsContent>
+
+          <TabsContent value='work-queue'>
+            <WorkQueueTab />
+          </TabsContent>
+        </Tabs>
       </Main>
     </>
   )
