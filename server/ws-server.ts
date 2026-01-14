@@ -435,6 +435,188 @@ async function createConvoy(name: string, issues: string[]): Promise<{ id: strin
   }
 }
 
+// Town status interface
+interface TownStatus {
+  town: {
+    name: string
+    path: string
+  }
+  overseer: {
+    name: string
+    email: string
+  }
+  townAgents: Array<{
+    name: string
+    type: string
+    icon: string
+    online: boolean
+    mailCount: number
+  }>
+  rigs: Array<{
+    name: string
+    witness: { online: boolean; mailCount: number }
+    refinery: { online: boolean; mqCount: number }
+    crew: Array<{ name: string; online: boolean }>
+    polecats: Array<{ name: string; online: boolean }>
+  }>
+  convoys: Array<{
+    id: string
+    name: string
+    status: 'active' | 'completed'
+    completed: number
+    total: number
+  }>
+}
+
+// Get full town status by parsing gt status output
+async function getTownStatus(): Promise<TownStatus> {
+  const output = await runCommand('gt status 2>/dev/null || echo ""')
+  const lines = output.split('\n')
+
+  const result: TownStatus = {
+    town: { name: '', path: '' },
+    overseer: { name: '', email: '' },
+    townAgents: [],
+    rigs: [],
+    convoys: [],
+  }
+
+  let currentRig: TownStatus['rigs'][0] | null = null
+  let inCrew = false
+  let inPolecats = false
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+
+    // Town name (first line like "Town: gt")
+    const townMatch = line.match(/^Town:\s*(.+)$/)
+    if (townMatch) {
+      result.town.name = townMatch[1].trim()
+      // Next line is path
+      if (i + 1 < lines.length && lines[i + 1].startsWith('/')) {
+        result.town.path = lines[i + 1].trim()
+      }
+      continue
+    }
+
+    // Overseer line
+    const overseerMatch = line.match(/👤\s*Overseer:\s*(.+?)\s*<(.+?)>/)
+    if (overseerMatch) {
+      result.overseer.name = overseerMatch[1].trim()
+      result.overseer.email = overseerMatch[2].trim()
+      continue
+    }
+
+    // Town-level agents (mayor, deacon)
+    const mayorMatch = line.match(/🎩\s*mayor\s+([●○])\s*(📬(\d+))?/)
+    if (mayorMatch) {
+      result.townAgents.push({
+        name: 'mayor',
+        type: 'mayor',
+        icon: '🎩',
+        online: mayorMatch[1] === '●',
+        mailCount: parseInt(mayorMatch[3] || '0', 10),
+      })
+      continue
+    }
+
+    const deaconMatch = line.match(/🐺\s*deacon\s+([●○])\s*(📬(\d+))?/)
+    if (deaconMatch) {
+      result.townAgents.push({
+        name: 'deacon',
+        type: 'deacon',
+        icon: '🐺',
+        online: deaconMatch[1] === '●',
+        mailCount: parseInt(deaconMatch[3] || '0', 10),
+      })
+      continue
+    }
+
+    // Rig section header (─── rig_name/ ───)
+    const rigMatch = line.match(/^───\s*(\w+)\/\s*───/)
+    if (rigMatch) {
+      // Save previous rig if exists
+      if (currentRig) {
+        result.rigs.push(currentRig)
+      }
+      currentRig = {
+        name: rigMatch[1],
+        witness: { online: false, mailCount: 0 },
+        refinery: { online: false, mqCount: 0 },
+        crew: [],
+        polecats: [],
+      }
+      inCrew = false
+      inPolecats = false
+      continue
+    }
+
+    // Within a rig section
+    if (currentRig) {
+      // Witness
+      const witnessMatch = line.match(/🦉\s*witness\s+([●○])\s*(📬(\d+))?/)
+      if (witnessMatch) {
+        currentRig.witness.online = witnessMatch[1] === '●'
+        currentRig.witness.mailCount = parseInt(witnessMatch[3] || '0', 10)
+        inCrew = false
+        inPolecats = false
+        continue
+      }
+
+      // Refinery
+      const refineryMatch = line.match(/🏭\s*refinery\s+([●○])\s*(MQ:(\d+))?/)
+      if (refineryMatch) {
+        currentRig.refinery.online = refineryMatch[1] === '●'
+        currentRig.refinery.mqCount = parseInt(refineryMatch[3] || '0', 10)
+        inCrew = false
+        inPolecats = false
+        continue
+      }
+
+      // Crew section header
+      const crewHeaderMatch = line.match(/👷\s*Crew\s*\((\d+)\)/)
+      if (crewHeaderMatch) {
+        inCrew = true
+        inPolecats = false
+        continue
+      }
+
+      // Polecats section header
+      const polecatsHeaderMatch = line.match(/😺\s*Polecats\s*\((\d+)\)/)
+      if (polecatsHeaderMatch) {
+        inCrew = false
+        inPolecats = true
+        continue
+      }
+
+      // Crew/Polecat member line (indented name with status)
+      const memberMatch = line.match(/^\s+(\w+)\s+([●○])/)
+      if (memberMatch) {
+        const member = {
+          name: memberMatch[1],
+          online: memberMatch[2] === '●',
+        }
+        if (inCrew) {
+          currentRig.crew.push(member)
+        } else if (inPolecats) {
+          currentRig.polecats.push(member)
+        }
+        continue
+      }
+    }
+  }
+
+  // Don't forget the last rig
+  if (currentRig) {
+    result.rigs.push(currentRig)
+  }
+
+  // Also fetch convoys
+  result.convoys = await getConvoyList()
+
+  return result
+}
+
 // Parse request body
 async function parseBody(req: import('http').IncomingMessage): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
@@ -520,6 +702,19 @@ const server = createServer(async (req, res) => {
     } catch (error) {
       res.writeHead(500, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error: 'Failed to get polecats' }))
+    }
+    return
+  }
+
+  // Town status (full overview)
+  if (pathname === '/api/town/status' && req.method === 'GET') {
+    try {
+      const status = await getTownStatus()
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(status))
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Failed to get town status' }))
     }
     return
   }
