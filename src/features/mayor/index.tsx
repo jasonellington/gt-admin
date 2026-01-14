@@ -1,12 +1,8 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { format } from 'date-fns'
 import {
   Send,
   Crown,
-  Wifi,
-  WifiOff,
-  RefreshCw,
   Building2,
   Circle,
   Users,
@@ -33,73 +29,25 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { useTerminalSocket } from '@/features/agent-detail/hooks/use-terminal-socket'
+import { TerminalPanel } from '@/features/agent-detail/components/terminal-panel'
 import { useTownStatus } from '@/features/town-dashboard/hooks/use-town-status'
-
-type Message = {
-  id: string
-  sender: 'user' | 'mayor'
-  content: string
-  timestamp: Date
-  streaming?: boolean
-}
-
-// Strip ANSI escape codes from terminal output
-function stripAnsi(str: string): string {
-  // eslint-disable-next-line no-control-regex
-  return str.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
-}
-
-// Parse terminal output to extract meaningful content
-function parseTerminalOutput(output: string): string {
-  const stripped = stripAnsi(output)
-  const lines = stripped.split('\n')
-
-  // Filter out empty lines and clean up
-  const cleanLines = lines
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
-
-  // Get the last meaningful chunk (after last prompt or command)
-  // This is a simple heuristic - we take recent non-empty lines
-  const recentLines = cleanLines.slice(-50)
-  return recentLines.join('\n')
-}
 
 export function Mayor() {
   const navigate = useNavigate()
-  const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
-  const [currentResponse, setCurrentResponse] = useState<string>('')
-  const lastOutputRef = useRef<string>('')
-  const responseIdRef = useRef<string | null>(null)
-  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const [terminalOutput, setTerminalOutput] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const commandHistoryRef = useRef<string[]>([])
+  const historyIndexRef = useRef(-1)
 
   const { status: townStatus, loading: townLoading } = useTownStatus()
 
   const handleOutput = useCallback((data: string) => {
-    // Update the current streaming response
-    const parsed = parseTerminalOutput(data)
-
-    // Only update if content changed meaningfully
-    if (parsed !== lastOutputRef.current) {
-      lastOutputRef.current = parsed
-
-      // If we have a pending response, update it
-      if (responseIdRef.current) {
-        setMessages(prev => prev.map(msg =>
-          msg.id === responseIdRef.current
-            ? { ...msg, content: parsed, timestamp: new Date() }
-            : msg
-        ))
-      } else {
-        // First output after connection - show welcome
-        setCurrentResponse(parsed)
-      }
-    }
+    setTerminalOutput(data)
   }, [])
 
-  const handleError = useCallback((_message: string) => {
-    // Error handling could be expanded to show toast notifications
+  const handleError = useCallback((message: string) => {
+    setError(message)
   }, [])
 
   const {
@@ -116,43 +64,36 @@ export function Mayor() {
     onError: handleError,
   })
 
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    if (scrollAreaRef.current) {
-      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]')
-      if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight
-      }
-    }
-  }, [messages, currentResponse])
-
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendCommand = (e: React.FormEvent) => {
     e.preventDefault()
     if (!inputValue.trim() || !sessionConnected) return
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      sender: 'user',
-      content: inputValue.trim(),
-      timestamp: new Date(),
-    }
-
-    // Create a placeholder for the Mayor's response
-    const responseId = (Date.now() + 1).toString()
-    const mayorResponse: Message = {
-      id: responseId,
-      sender: 'mayor',
-      content: '...',
-      timestamp: new Date(),
-      streaming: true,
-    }
-
-    responseIdRef.current = responseId
-    setMessages(prev => [...prev, userMessage, mayorResponse])
+    // Add to command history
+    commandHistoryRef.current.unshift(inputValue.trim())
+    historyIndexRef.current = -1
 
     // Send the command to Mayor's tmux session
     sendCommand(inputValue.trim())
     setInputValue('')
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (historyIndexRef.current < commandHistoryRef.current.length - 1) {
+        historyIndexRef.current++
+        setInputValue(commandHistoryRef.current[historyIndexRef.current])
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (historyIndexRef.current > 0) {
+        historyIndexRef.current--
+        setInputValue(commandHistoryRef.current[historyIndexRef.current])
+      } else if (historyIndexRef.current === 0) {
+        historyIndexRef.current = -1
+        setInputValue('')
+      }
+    }
   }
 
   return (
@@ -235,8 +176,8 @@ export function Mayor() {
                                 key={polecat.name}
                                 onClick={() =>
                                   navigate({
-                                    to: '/rigs/$rigId/polecats/$polecatId',
-                                    params: { rigId: rig.name, polecatId: polecat.name },
+                                    to: '/agents/$agentId',
+                                    params: { agentId: polecat.name },
                                   })
                                 }
                                 className='flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm transition-colors hover:bg-muted'
@@ -301,12 +242,7 @@ export function Mayor() {
                           .map((convoy) => (
                             <button
                               key={convoy.id}
-                              onClick={() =>
-                                navigate({
-                                  to: '/convoys/$convoyId',
-                                  params: { convoyId: convoy.id },
-                                })
-                              }
+                              onClick={() => navigate({ to: '/convoys' })}
                               className='flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm transition-colors hover:bg-muted'
                             >
                               <span className='truncate'>{convoy.name}</span>
@@ -323,135 +259,56 @@ export function Mayor() {
             </ScrollArea>
           </div>
 
-          {/* Main Chat Area */}
-          <div className='flex flex-1 flex-col overflow-hidden rounded-lg border bg-card'>
-            {/* Chat Header */}
-            <div className='flex items-center justify-between border-b px-4 py-3'>
-              <div className='flex items-center gap-3'>
-                <Avatar className='h-10 w-10'>
-                  <AvatarImage src='/avatars/mayor.jpg' alt='Mayor' />
-                  <AvatarFallback className='bg-primary text-primary-foreground'>
-                    <Crown className='size-5' />
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h1 className='text-lg font-semibold'>Mayor</h1>
-                  <div className='text-sm text-muted-foreground'>
-                    {tmuxSession ? (
-                      <span className='font-mono text-xs'>{tmuxSession}</span>
-                    ) : (
-                      'Task coordination assistant'
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className='flex items-center gap-2'>
-                <Badge
-                  variant={
-                    sessionConnected
-                      ? 'default'
-                      : status === 'connecting' || status === 'reconnecting'
-                        ? 'secondary'
-                        : 'destructive'
-                  }
-                  className={
-                    sessionConnected
-                      ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800'
-                      : ''
-                  }
-                >
-                  {sessionConnected ? (
-                    <>
-                      <Wifi className='mr-1 h-3 w-3' />
-                      Connected
-                    </>
-                  ) : status === 'connecting' || status === 'reconnecting' ? (
-                    <>
-                      <RefreshCw className='mr-1 h-3 w-3 animate-spin' />
-                      {status === 'connecting' ? 'Connecting...' : 'Reconnecting...'}
-                    </>
+          {/* Main Terminal Area */}
+          <div className='flex flex-1 flex-col gap-4 overflow-hidden'>
+            {/* Header */}
+            <div className='flex items-center gap-3 rounded-lg border bg-card px-4 py-3'>
+              <Avatar className='h-10 w-10'>
+                <AvatarImage src='/avatars/mayor.jpg' alt='Mayor' />
+                <AvatarFallback className='bg-primary text-primary-foreground'>
+                  <Crown className='size-5' />
+                </AvatarFallback>
+              </Avatar>
+              <div className='flex-1'>
+                <h1 className='text-lg font-semibold'>Mayor</h1>
+                <div className='text-sm text-muted-foreground'>
+                  {tmuxSession ? (
+                    <span className='font-mono text-xs'>{tmuxSession}</span>
                   ) : (
-                    <>
-                      <WifiOff className='mr-1 h-3 w-3' />
-                      Disconnected
-                    </>
+                    'Task coordination assistant'
                   )}
-                </Badge>
-                {!sessionConnected && status === 'disconnected' && (
-                  <Button variant='ghost' size='sm' onClick={reconnect}>
-                    <RefreshCw className='h-4 w-4' />
-                  </Button>
-                )}
+                </div>
               </div>
             </div>
 
-            {/* Messages Area */}
-            <ScrollArea className='flex-1 px-4' ref={scrollAreaRef}>
-              <div className='flex flex-col gap-4 py-4'>
-                {/* Welcome message when connected but no messages */}
-                {messages.length === 0 && sessionConnected && (
-                  <div className='self-start max-w-[80%] rounded-lg px-4 py-3 bg-muted'>
-                    <p className='text-sm'>
-                      Connected to Mayor. Type a message to interact with the
-                      Mayor's tmux session.
-                    </p>
-                    <span className='mt-1 block text-xs text-muted-foreground'>
-                      {format(new Date(), 'h:mm a')}
-                    </span>
-                  </div>
-                )}
-                {/* Not connected message */}
-                {!sessionConnected && messages.length === 0 && (
-                  <div className='self-start max-w-[80%] rounded-lg px-4 py-3 bg-muted'>
-                    <p className='text-sm text-muted-foreground'>
-                      {status === 'connecting' || status === 'reconnecting'
-                        ? 'Connecting to Mayor session...'
-                        : 'Mayor session is not running. Start the Mayor with `gt mayor start` to connect.'}
-                    </p>
-                  </div>
-                )}
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={cn(
-                      'max-w-[80%] rounded-lg px-4 py-3',
-                      message.sender === 'user'
-                        ? 'self-end bg-primary text-primary-foreground'
-                        : 'self-start bg-muted'
-                    )}
-                  >
-                    <p className='text-sm whitespace-pre-wrap'>{message.content}</p>
-                    <span
-                      className={cn(
-                        'mt-1 block text-xs',
-                        message.sender === 'user'
-                          ? 'text-primary-foreground/70'
-                          : 'text-muted-foreground'
-                      )}
-                    >
-                      {format(message.timestamp, 'h:mm a')}
-                      {message.streaming && ' • streaming...'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
+            {/* Terminal Panel */}
+            <div className='flex-1 min-h-0'>
+              <TerminalPanel
+                session={tmuxSession ?? 'mayor'}
+                output={terminalOutput}
+                status={status}
+                sessionConnected={sessionConnected}
+                error={error}
+                onReconnect={reconnect}
+              />
+            </div>
 
-            {/* Input Area */}
-            <form onSubmit={handleSendMessage} className='flex gap-2 border-t p-4'>
+            {/* Command Input */}
+            <form onSubmit={handleSendCommand} className='flex gap-2 rounded-lg border bg-card p-4'>
               <label className='flex-1'>
-                <span className='sr-only'>Message the Mayor</span>
+                <span className='sr-only'>Send command to Mayor</span>
                 <input
                   type='text'
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
                   placeholder={
                     sessionConnected
-                      ? 'Type your message...'
-                      : 'Connect to Mayor to send messages...'
+                      ? 'Type a command... (↑↓ for history)'
+                      : 'Connect to Mayor to send commands...'
                   }
                   disabled={!sessionConnected}
-                  className='h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'
+                  className='h-10 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'
                 />
               </label>
               <Button
@@ -460,7 +317,7 @@ export function Mayor() {
                 disabled={!sessionConnected || !inputValue.trim()}
               >
                 <Send className='size-4' />
-                <span className='sr-only'>Send message</span>
+                <span className='sr-only'>Send command</span>
               </Button>
             </form>
           </div>
