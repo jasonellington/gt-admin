@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import {
   Card,
   CardContent,
@@ -40,7 +41,15 @@ export function RigList({ rigs }: RigListProps) {
           <TableBody>
             {rigs.map((rig) => (
               <TableRow key={rig.id}>
-                <TableCell className='font-medium'>{rig.name}</TableCell>
+                <TableCell className='font-medium'>
+                  <Link
+                    to='/rigs/$rigName'
+                    params={{ rigName: rig.name }}
+                    className='hover:underline'
+                  >
+                    {rig.name}
+                  </Link>
+                </TableCell>
                 <TableCell className='text-center'>{rig.polecatCount}</TableCell>
                 <TableCell className='text-center'>{rig.crewCount}</TableCell>
                 <TableCell>
