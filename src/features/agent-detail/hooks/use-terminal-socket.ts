@@ -81,7 +81,8 @@ export function useTerminalSocket({
       wsRef.current = ws
 
       ws.onopen = () => {
-        if (!mountedRef.current) {
+        // Check if this is still the current websocket
+        if (wsRef.current !== ws) {
           ws.close()
           return
         }
@@ -89,7 +90,8 @@ export function useTerminalSocket({
       }
 
       ws.onmessage = (event) => {
-        if (!mountedRef.current) return
+        // Check if this is still the current websocket
+        if (wsRef.current !== ws) return
 
         try {
           const message = JSON.parse(event.data)
@@ -119,7 +121,8 @@ export function useTerminalSocket({
       }
 
       ws.onclose = () => {
-        if (!mountedRef.current) return
+        // Only handle close if this is still the current websocket
+        if (wsRef.current !== ws) return
 
         setStatus('disconnected')
         setSessionConnected(false)
@@ -149,8 +152,9 @@ export function useTerminalSocket({
       }
 
       if (wsRef.current) {
-        wsRef.current.close()
-        wsRef.current = null
+        const ws = wsRef.current
+        wsRef.current = null  // Clear ref before closing so onclose is ignored
+        ws.close()
       }
     }
   }, [agentName, agentType, rig, wsUrl])
