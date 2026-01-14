@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Cog,
   Command,
+  HardHat,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -60,6 +61,11 @@ export const sidebarData: SidebarData = {
             {
               title: 'Refinery',
               url: '/agents/refinery',
+            },
+            {
+              title: 'Crew: jason',
+              url: '/crew/jason?rig=gt_admin',
+              icon: HardHat,
             },
           ],
         },
