@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Cog,
   Command,
+  Users,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -60,6 +61,11 @@ export const sidebarData: SidebarData = {
             {
               title: 'Refinery',
               url: '/agents/refinery',
+            },
+            {
+              title: 'Crew',
+              url: '/rigs/gt_admin/crew/marty',
+              icon: Users,
             },
           ],
         },

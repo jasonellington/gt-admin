@@ -25,6 +25,8 @@ import { Route as authOtpRouteImport } from './routes/(auth)/otp'
 import { Route as authForgotPasswordRouteImport } from './routes/(auth)/forgot-password'
 import { Route as AuthenticatedMayorIndexRouteImport } from './routes/_authenticated/mayor/index'
 import { Route as AuthenticatedAgentsAgentIdRouteImport } from './routes/_authenticated/agents/$agentId'
+import { Route as AuthenticatedRigsRigIdIndexRouteImport } from './routes/_authenticated/rigs/$rigId/index'
+import { Route as AuthenticatedRigsRigIdCrewCrewIdRouteImport } from './routes/_authenticated/rigs/$rigId/crew/$crewId'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -106,6 +108,18 @@ const AuthenticatedAgentsAgentIdRoute =
     path: '/agents/$agentId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedRigsRigIdIndexRoute =
+  AuthenticatedRigsRigIdIndexRouteImport.update({
+    id: '/rigs/$rigId/',
+    path: '/rigs/$rigId/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedRigsRigIdCrewCrewIdRoute =
+  AuthenticatedRigsRigIdCrewCrewIdRouteImport.update({
+    id: '/rigs/$rigId/crew/$crewId',
+    path: '/rigs/$rigId/crew/$crewId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/forgot-password': typeof authForgotPasswordRoute
@@ -123,6 +137,8 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/mayor': typeof AuthenticatedMayorIndexRoute
+  '/rigs/$rigId': typeof AuthenticatedRigsRigIdIndexRoute
+  '/rigs/$rigId/crew/$crewId': typeof AuthenticatedRigsRigIdCrewCrewIdRoute
 }
 export interface FileRoutesByTo {
   '/forgot-password': typeof authForgotPasswordRoute
@@ -140,6 +156,8 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/mayor': typeof AuthenticatedMayorIndexRoute
+  '/rigs/$rigId': typeof AuthenticatedRigsRigIdIndexRoute
+  '/rigs/$rigId/crew/$crewId': typeof AuthenticatedRigsRigIdCrewCrewIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -159,6 +177,8 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/_authenticated/mayor/': typeof AuthenticatedMayorIndexRoute
+  '/_authenticated/rigs/$rigId/': typeof AuthenticatedRigsRigIdIndexRoute
+  '/_authenticated/rigs/$rigId/crew/$crewId': typeof AuthenticatedRigsRigIdCrewCrewIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -178,6 +198,8 @@ export interface FileRouteTypes {
     | '/'
     | '/agents/$agentId'
     | '/mayor'
+    | '/rigs/$rigId'
+    | '/rigs/$rigId/crew/$crewId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/forgot-password'
@@ -195,6 +217,8 @@ export interface FileRouteTypes {
     | '/'
     | '/agents/$agentId'
     | '/mayor'
+    | '/rigs/$rigId'
+    | '/rigs/$rigId/crew/$crewId'
   id:
     | '__root__'
     | '/_authenticated'
@@ -213,6 +237,8 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_authenticated/agents/$agentId'
     | '/_authenticated/mayor/'
+    | '/_authenticated/rigs/$rigId/'
+    | '/_authenticated/rigs/$rigId/crew/$crewId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -343,6 +369,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAgentsAgentIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/rigs/$rigId/': {
+      id: '/_authenticated/rigs/$rigId/'
+      path: '/rigs/$rigId'
+      fullPath: '/rigs/$rigId'
+      preLoaderRoute: typeof AuthenticatedRigsRigIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/rigs/$rigId/crew/$crewId': {
+      id: '/_authenticated/rigs/$rigId/crew/$crewId'
+      path: '/rigs/$rigId/crew/$crewId'
+      fullPath: '/rigs/$rigId/crew/$crewId'
+      preLoaderRoute: typeof AuthenticatedRigsRigIdCrewCrewIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -352,6 +392,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAgentsAgentIdRoute: typeof AuthenticatedAgentsAgentIdRoute
   AuthenticatedMayorIndexRoute: typeof AuthenticatedMayorIndexRoute
+  AuthenticatedRigsRigIdIndexRoute: typeof AuthenticatedRigsRigIdIndexRoute
+  AuthenticatedRigsRigIdCrewCrewIdRoute: typeof AuthenticatedRigsRigIdCrewCrewIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -360,6 +402,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedAgentsAgentIdRoute: AuthenticatedAgentsAgentIdRoute,
   AuthenticatedMayorIndexRoute: AuthenticatedMayorIndexRoute,
+  AuthenticatedRigsRigIdIndexRoute: AuthenticatedRigsRigIdIndexRoute,
+  AuthenticatedRigsRigIdCrewCrewIdRoute: AuthenticatedRigsRigIdCrewCrewIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
