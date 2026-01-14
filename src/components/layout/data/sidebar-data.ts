@@ -32,6 +32,11 @@ export const sidebarData: SidebarData = {
           icon: LayoutDashboard,
         },
         {
+          title: 'Agents',
+          url: '/agents',
+          icon: Users,
+        },
+        {
           title: 'Mayor',
           url: '/mayor',
           icon: Crown,
