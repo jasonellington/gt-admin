@@ -6,6 +6,7 @@ import {
   Cog,
   Command,
   Users,
+  GitMerge,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -40,6 +41,11 @@ export const sidebarData: SidebarData = {
           title: 'Overview',
           url: '/town',
           icon: LayoutDashboard,
+        },
+        {
+          title: 'Merge Queue',
+          url: '/merge-queue',
+          icon: GitMerge,
         },
       ],
     },
