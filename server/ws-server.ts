@@ -1,9 +1,24 @@
 import { WebSocketServer, WebSocket } from 'ws'
 import { createServer } from 'http'
-import { exec } from 'child_process'
+import { exec, ExecOptions } from 'child_process'
 import { parse } from 'url'
+import { homedir } from 'os'
+import { resolve } from 'path'
 
 const PORT = 3001
+
+// Gas Town workspace directory - set via GT_WORKSPACE env var or defaults to ~/gt
+const GT_WORKSPACE = process.env.GT_WORKSPACE
+  ? resolve(process.env.GT_WORKSPACE.replace(/^~/, homedir()))
+  : resolve(homedir(), 'gt')
+
+console.log(`Using Gas Town workspace: ${GT_WORKSPACE}`)
+
+// Default exec options - run commands from the Gas Town workspace
+const defaultExecOptions: ExecOptions = {
+  cwd: GT_WORKSPACE,
+  maxBuffer: 10 * 1024 * 1024,
+}
 
 // Known agents to check status for
 const KNOWN_AGENTS = [
@@ -44,8 +59,6 @@ async function getActivePolecats(): Promise<Array<{
     return []
   }
 }
-const POLL_INTERVAL = 500 // ms between tmux captures (higher = less flashing)
-
 // Agent types determine how we manage sessions
 type AgentType = 'mayor' | 'deacon' | 'witness' | 'refinery' | 'polecat' | 'crew'
 
@@ -113,7 +126,7 @@ function getAgentStatus(agentType: AgentType, rig: string | null): Promise<{ run
         return
     }
 
-    exec(cmd, (error, stdout) => {
+    exec(cmd, { cwd: GT_WORKSPACE }, (error, stdout) => {
       const output = stdout || ''
       const running = output.includes('●') || output.includes('running')
       resolve({ running, status: output.trim() })
@@ -142,13 +155,66 @@ function captureTmux(tmuxSession: string): Promise<string> {
   })
 }
 
-// Send command to tmux session
+// Send command to tmux session (adds Enter at the end)
 function sendToTmux(tmuxSession: string, command: string): Promise<void> {
   return new Promise((resolve, reject) => {
     // Use -l for literal text, then send Enter separately
     // This avoids shell escaping issues with special characters
     const escapedCommand = command.replace(/'/g, "'\\''")
     exec(`tmux send-keys -t '${tmuxSession}' -l '${escapedCommand}' && tmux send-keys -t '${tmuxSession}' Enter`, (error) => {
+      if (error) {
+        reject(error)
+      } else {
+        resolve()
+      }
+    })
+  })
+}
+
+// Send raw keys to tmux session (no Enter added, handles special keys)
+function sendRawKeys(tmuxSession: string, data: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Handle special key sequences from xterm
+    let keys = data
+
+    // Map common escape sequences to tmux key names
+    if (data === '\r') {
+      keys = 'Enter'
+    } else if (data === '\x7f' || data === '\b') {
+      keys = 'BSpace'
+    } else if (data === '\x1b[A') {
+      keys = 'Up'
+    } else if (data === '\x1b[B') {
+      keys = 'Down'
+    } else if (data === '\x1b[C') {
+      keys = 'Right'
+    } else if (data === '\x1b[D') {
+      keys = 'Left'
+    } else if (data === '\x1b') {
+      keys = 'Escape'
+    } else if (data === '\t') {
+      keys = 'Tab'
+    } else if (data === '\x03') {
+      keys = 'C-c'
+    } else if (data === '\x04') {
+      keys = 'C-d'
+    } else if (data === '\x1a') {
+      keys = 'C-z'
+    } else {
+      // For regular characters, use -l for literal
+      const escapedData = data.replace(/'/g, "'\\''")
+      exec(`tmux send-keys -t '${tmuxSession}' -l '${escapedData}'`, (error) => {
+        if (error) {
+          reject(error)
+        } else {
+          resolve()
+        }
+      })
+      return
+    }
+
+    // Send special key
+    exec(`tmux send-keys -t '${tmuxSession}' '${keys}'`, (error) => {
       if (error) {
         reject(error)
       } else {
@@ -185,7 +251,7 @@ function startAgent(agentType: AgentType, rig: string | null): Promise<string> {
       return
     }
 
-    exec(cmd, (error, stdout, stderr) => {
+    exec(cmd, { cwd: GT_WORKSPACE }, (error, stdout, stderr) => {
       if (error) {
         reject(new Error(stderr || error.message))
       } else {
@@ -222,7 +288,7 @@ function stopAgent(agentType: AgentType, rig: string | null): Promise<string> {
       return
     }
 
-    exec(cmd, (error, stdout, stderr) => {
+    exec(cmd, { cwd: GT_WORKSPACE }, (error, stdout, stderr) => {
       if (error) {
         reject(new Error(stderr || error.message))
       } else {
@@ -232,13 +298,13 @@ function stopAgent(agentType: AgentType, rig: string | null): Promise<string> {
   })
 }
 
+const POLL_INTERVAL = 100 // ms between tmux captures
+
 // Start polling for tmux content
 function startPolling(ws: WebSocket, state: ClientState) {
   if (state.pollInterval) {
     clearInterval(state.pollInterval)
   }
-
-  let isFirstPoll = true
 
   const poll = async () => {
     try {
@@ -246,38 +312,10 @@ function startPolling(ws: WebSocket, state: ClientState) {
 
       // Only send if content changed
       if (content !== state.lastContent) {
-        if (isFirstPoll) {
-          // Send full content on first poll
-          ws.send(JSON.stringify({
-            type: 'output',
-            data: content,
-            full: true,
-          }))
-          isFirstPoll = false
-        } else {
-          // Send only the new lines (diff)
-          const oldLines = state.lastContent.split('\n')
-          const newLines = content.split('\n')
-
-          // Find where the content diverges
-          let commonPrefix = 0
-          while (commonPrefix < oldLines.length &&
-                 commonPrefix < newLines.length &&
-                 oldLines[commonPrefix] === newLines[commonPrefix]) {
-            commonPrefix++
-          }
-
-          // Get new content from the divergence point
-          const newContent = newLines.slice(commonPrefix).join('\n')
-
-          if (newContent || newLines.length < oldLines.length) {
-            ws.send(JSON.stringify({
-              type: 'output',
-              data: content,
-              full: true, // For now, send full to avoid sync issues
-            }))
-          }
-        }
+        ws.send(JSON.stringify({
+          type: 'output',
+          data: content,
+        }))
         state.lastContent = content
       }
     } catch (error) {
@@ -364,7 +402,7 @@ async function getAllCrew(): Promise<Array<{
 // Run a command and return stdout
 function runCommand(cmd: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    exec(cmd, { maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+    exec(cmd, defaultExecOptions, (error, stdout, stderr) => {
       if (error) {
         reject(new Error(stderr || error.message))
       } else {
@@ -1061,6 +1099,7 @@ wss.on('connection', async (ws, req) => {
 
       switch (message.type) {
         case 'command':
+          // Send command with Enter via tmux send-keys
           if (message.command) {
             try {
               await sendToTmux(state.tmuxSession, message.command)
@@ -1077,8 +1116,24 @@ wss.on('connection', async (ws, req) => {
           }
           break
 
+        case 'input':
+          // Raw input - send keys directly to tmux
+          if (message.data) {
+            try {
+              await sendRawKeys(state.tmuxSession, message.data)
+            } catch (error) {
+              // Silently ignore input errors to avoid spamming
+            }
+          }
+          break
+
+        case 'resize':
+          // Resize not supported in polling mode
+          break
+
         case 'refresh':
-          // Re-check session status
+          // Re-check session status and reconnect PTY
+          stopPolling(state)
           const nowExists = await sessionExists(state.tmuxSession)
           ws.send(JSON.stringify({
             type: 'status',
@@ -1089,10 +1144,7 @@ wss.on('connection', async (ws, req) => {
             rig: state.rig,
           }))
           if (nowExists) {
-            state.lastContent = ''
             startPolling(ws, state)
-          } else {
-            stopPolling(state)
           }
           break
 
@@ -1123,7 +1175,6 @@ wss.on('connection', async (ws, req) => {
                 rig: state.rig,
               }))
               if (started) {
-                state.lastContent = ''
                 startPolling(ws, state)
               }
             }

@@ -48,6 +48,24 @@ Read these files to understand the domain:
 - **Zod** for schema validation
 - **Lucide** and **Tabler** icons
 
+## Package Manager
+
+**Always use pnpm** - never use npm or yarn.
+
+```bash
+# Install dependencies
+pnpm install
+
+# Run dev server
+pnpm dev
+
+# Run backend server
+pnpm server
+
+# Build
+pnpm build
+```
+
 ## Code Patterns
 
 ### Feature Structure

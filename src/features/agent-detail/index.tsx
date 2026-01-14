@@ -167,11 +167,15 @@ function AgentDetailView({
 
   // Handle errors
   const handleError = useCallback((message: string) => {
+    // Don't show "not running" as an error - the offline badge indicates this
+    if (message.includes('is not running')) {
+      return
+    }
     setTerminalError(message)
   }, [])
 
   // Use the terminal socket hook - single connection for the page
-  const { status: wsStatus, sessionConnected, tmuxSession, sendCommand, startSession, stopSession, reconnect } = useTerminalSocket({
+  const { status: wsStatus, sessionConnected, tmuxSession, sendCommand, sendInput, startSession, stopSession, reconnect } = useTerminalSocket({
     agentName: name,
     agentType,
     rig,
@@ -308,10 +312,8 @@ function AgentDetailView({
         <TerminalPanel
           session={tmuxSession ?? name}
           output={terminalOutput}
-          status={wsStatus}
-          sessionConnected={sessionConnected}
           error={terminalError}
-          onReconnect={reconnect}
+          onInput={sendInput}
         />
       </Main>
     </>

@@ -17,6 +17,7 @@ interface UseTerminalSocketReturn {
   sessionConnected: boolean
   tmuxSession: string | null
   sendCommand: (command: string) => void
+  sendInput: (data: string) => void
   startSession: () => void
   stopSession: () => void
   reconnect: () => void
@@ -36,102 +37,138 @@ export function useTerminalSocket({
   const [status, setStatus] = useState<ConnectionStatus>('connecting')
   const [sessionConnected, setSessionConnected] = useState(false)
   const [tmuxSession, setTmuxSession] = useState<string | null>(null)
+
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const mountedRef = useRef(true)
 
-  const connect = useCallback(() => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current)
-      reconnectTimeoutRef.current = null
-    }
+  // Store callbacks in refs to avoid dependency issues
+  const onOutputRef = useRef(onOutput)
+  const onErrorRef = useRef(onError)
 
-    if (wsRef.current) {
-      wsRef.current.close()
-    }
+  useEffect(() => {
+    onOutputRef.current = onOutput
+    onErrorRef.current = onError
+  }, [onOutput, onError])
 
-    setStatus('connecting')
+  useEffect(() => {
+    mountedRef.current = true
 
-    // Build URL with agent info
-    const params = new URLSearchParams({
-      agent: agentName,
-      type: agentType,
-    })
-    if (rig) {
-      params.set('rig', rig)
-    }
+    const connect = () => {
+      if (!mountedRef.current) return
 
-    const ws = new WebSocket(`${wsUrl}?${params.toString()}`)
-    wsRef.current = ws
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
+      }
 
-    ws.onopen = () => {
-      setStatus('connected')
-    }
+      if (wsRef.current) {
+        wsRef.current.close()
+        wsRef.current = null
+      }
 
-    ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data)
+      setStatus('connecting')
 
-        switch (message.type) {
-          case 'output':
-            onOutput?.(message.data)
-            break
+      const params = new URLSearchParams({
+        agent: agentName,
+        type: agentType,
+      })
+      if (rig) {
+        params.set('rig', rig)
+      }
 
-          case 'status':
-            setSessionConnected(message.connected)
-            setTmuxSession(message.tmuxSession || null)
-            if (!message.connected) {
-              onError?.(`Session "${message.tmuxSession}" is not running`)
-            }
-            break
+      const ws = new WebSocket(`${wsUrl}?${params.toString()}`)
+      wsRef.current = ws
 
-          case 'error':
-            onError?.(message.message)
-            break
-
-          case 'session-started':
-          case 'session-stopped':
-          case 'command-sent':
-            // These are acknowledgments
-            break
+      ws.onopen = () => {
+        if (!mountedRef.current) {
+          ws.close()
+          return
         }
-      } catch {
-        // Ignore parse errors
+        setStatus('connected')
+      }
+
+      ws.onmessage = (event) => {
+        if (!mountedRef.current) return
+
+        try {
+          const message = JSON.parse(event.data)
+
+          switch (message.type) {
+            case 'output':
+              onOutputRef.current?.(message.data)
+              break
+
+            case 'status':
+              setSessionConnected(message.connected)
+              setTmuxSession(message.tmuxSession || null)
+              break
+
+            case 'error':
+              onErrorRef.current?.(message.message)
+              break
+
+            case 'session-started':
+            case 'session-stopped':
+            case 'command-sent':
+              break
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+
+      ws.onclose = () => {
+        if (!mountedRef.current) return
+
+        setStatus('disconnected')
+        setSessionConnected(false)
+
+        // Only reconnect if still mounted
+        reconnectTimeoutRef.current = setTimeout(() => {
+          if (mountedRef.current) {
+            setStatus('reconnecting')
+            connect()
+          }
+        }, RECONNECT_DELAY)
+      }
+
+      ws.onerror = () => {
+        console.warn('WebSocket connection error - will reconnect')
       }
     }
 
-    ws.onclose = () => {
-      setStatus('disconnected')
-      setSessionConnected(false)
-
-      reconnectTimeoutRef.current = setTimeout(() => {
-        setStatus('reconnecting')
-        connect()
-      }, RECONNECT_DELAY)
-    }
-
-    ws.onerror = () => {
-      onError?.('WebSocket connection error')
-    }
-  }, [agentName, agentType, rig, wsUrl, onOutput, onError])
-
-  useEffect(() => {
     connect()
 
     return () => {
+      mountedRef.current = false
+
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
       }
+
       if (wsRef.current) {
         wsRef.current.close()
+        wsRef.current = null
       }
     }
-  }, [connect])
+  }, [agentName, agentType, rig, wsUrl])
 
   const sendCommand = useCallback((command: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'command',
         command,
+      }))
+    }
+  }, [])
+
+  const sendInput = useCallback((data: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'input',
+        data,
       }))
     }
   }, [])
@@ -151,16 +188,15 @@ export function useTerminalSocket({
   const reconnect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'refresh' }))
-    } else {
-      connect()
     }
-  }, [connect])
+  }, [])
 
   return {
     status,
     sessionConnected,
     tmuxSession,
     sendCommand,
+    sendInput,
     startSession,
     stopSession,
     reconnect,
