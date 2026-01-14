@@ -27,6 +27,11 @@ export const sidebarData: SidebarData = {
       title: 'Town',
       items: [
         {
+          title: 'Dashboard',
+          url: '/town',
+          icon: LayoutDashboard,
+        },
+        {
           title: 'Mayor',
           url: '/mayor',
           icon: Crown,
@@ -35,11 +40,6 @@ export const sidebarData: SidebarData = {
           title: 'Deacon',
           url: '/agents/deacon',
           icon: Dog,
-        },
-        {
-          title: 'Overview',
-          url: '/town',
-          icon: LayoutDashboard,
         },
       ],
     },
