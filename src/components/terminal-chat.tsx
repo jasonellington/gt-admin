@@ -14,7 +14,8 @@ interface TerminalChatProps {
   rig?: string | null
   title?: string
   className?: string
-  height?: string
+  /** Height of terminal. Use 'full' for flex-based full height, or a Tailwind class like 'h-96' */
+  height?: string | 'full'
 }
 
 const statusConfig = {
@@ -86,8 +87,11 @@ export function TerminalChat({
   useEffect(() => {
     if (!terminalRef.current) return
 
+    const container = terminalRef.current
+    let resizeObserver: ResizeObserver | null = null
+
     const timeoutId = setTimeout(() => {
-      if (!terminalRef.current) return
+      if (!container) return
 
       const term = new Terminal({
         cursorBlink: false,
@@ -128,7 +132,7 @@ export function TerminalChat({
       term.loadAddon(fitAddon)
       term.loadAddon(webLinksAddon)
 
-      term.open(terminalRef.current!)
+      term.open(container)
       fitAddon.fit()
 
       xtermRef.current = term
@@ -139,13 +143,21 @@ export function TerminalChat({
       }
       window.addEventListener('resize', handleResize)
 
+      // Use ResizeObserver for container size changes (flex layouts)
+      resizeObserver = new ResizeObserver(() => {
+        fitAddon.fit()
+      })
+      resizeObserver.observe(container)
+
       return () => {
         window.removeEventListener('resize', handleResize)
+        resizeObserver?.disconnect()
       }
     }, 0)
 
     return () => {
       clearTimeout(timeoutId)
+      resizeObserver?.disconnect()
       if (xtermRef.current) {
         xtermRef.current.dispose()
         xtermRef.current = null
@@ -231,7 +243,7 @@ export function TerminalChat({
       {/* Terminal display */}
       <div
         ref={terminalRef}
-        className={`${height} overflow-hidden rounded-md bg-zinc-950 [&_.xterm-viewport]:!overflow-hidden`}
+        className={`${height === 'full' ? 'flex-1 min-h-0' : height} overflow-hidden rounded-md bg-zinc-950 [&_.xterm-viewport]:!overflow-hidden`}
         style={{ contain: 'paint' }}
       />
 
