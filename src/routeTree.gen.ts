@@ -15,6 +15,7 @@ import { Route as AuthenticatedTownRouteImport } from './routes/_authenticated/t
 import { Route as AuthenticatedCrewRouteImport } from './routes/_authenticated/crew'
 import { Route as AuthenticatedConvoysRouteImport } from './routes/_authenticated/convoys'
 import { Route as AuthenticatedBeadsRouteImport } from './routes/_authenticated/beads'
+import { Route as AuthenticatedAgentViewRouteImport } from './routes/_authenticated/agent-view'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors404RouteImport } from './routes/(errors)/404'
@@ -59,6 +60,11 @@ const AuthenticatedConvoysRoute = AuthenticatedConvoysRouteImport.update({
 const AuthenticatedBeadsRoute = AuthenticatedBeadsRouteImport.update({
   id: '/beads',
   path: '/beads',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAgentViewRoute = AuthenticatedAgentViewRouteImport.update({
+  id: '/agent-view',
+  path: '/agent-view',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const errors503Route = errors503RouteImport.update({
@@ -158,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/agent-view': typeof AuthenticatedAgentViewRoute
   '/beads': typeof AuthenticatedBeadsRoute
   '/convoys': typeof AuthenticatedConvoysRoute
   '/crew': typeof AuthenticatedCrewRoute
@@ -181,6 +188,7 @@ export interface FileRoutesByTo {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/agent-view': typeof AuthenticatedAgentViewRoute
   '/beads': typeof AuthenticatedBeadsRoute
   '/convoys': typeof AuthenticatedConvoysRoute
   '/crew': typeof AuthenticatedCrewRoute
@@ -206,6 +214,7 @@ export interface FileRoutesById {
   '/(errors)/404': typeof errors404Route
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
+  '/_authenticated/agent-view': typeof AuthenticatedAgentViewRoute
   '/_authenticated/beads': typeof AuthenticatedBeadsRoute
   '/_authenticated/convoys': typeof AuthenticatedConvoysRoute
   '/_authenticated/crew': typeof AuthenticatedCrewRoute
@@ -231,6 +240,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/agent-view'
     | '/beads'
     | '/convoys'
     | '/crew'
@@ -254,6 +264,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/agent-view'
     | '/beads'
     | '/convoys'
     | '/crew'
@@ -278,6 +289,7 @@ export interface FileRouteTypes {
     | '/(errors)/404'
     | '/(errors)/500'
     | '/(errors)/503'
+    | '/_authenticated/agent-view'
     | '/_authenticated/beads'
     | '/_authenticated/convoys'
     | '/_authenticated/crew'
@@ -347,6 +359,13 @@ declare module '@tanstack/react-router' {
       path: '/beads'
       fullPath: '/beads'
       preLoaderRoute: typeof AuthenticatedBeadsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/agent-view': {
+      id: '/_authenticated/agent-view'
+      path: '/agent-view'
+      fullPath: '/agent-view'
+      preLoaderRoute: typeof AuthenticatedAgentViewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/(errors)/503': {
@@ -465,6 +484,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAgentViewRoute: typeof AuthenticatedAgentViewRoute
   AuthenticatedBeadsRoute: typeof AuthenticatedBeadsRoute
   AuthenticatedConvoysRoute: typeof AuthenticatedConvoysRoute
   AuthenticatedCrewRoute: typeof AuthenticatedCrewRoute
@@ -479,6 +499,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAgentViewRoute: AuthenticatedAgentViewRoute,
   AuthenticatedBeadsRoute: AuthenticatedBeadsRoute,
   AuthenticatedConvoysRoute: AuthenticatedConvoysRoute,
   AuthenticatedCrewRoute: AuthenticatedCrewRoute,

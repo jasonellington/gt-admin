@@ -88,7 +88,8 @@ function getTmuxSessionName(agentType: AgentType, agentName: string, rig: string
       // Polecats use gt-<rig>-<name> naming convention
       return rig ? `gt-${rig}-${agentName}` : `gt-${agentName}`
     case 'crew':
-      return rig ? `${rig}-${agentName}` : agentName
+      // Crew sessions use format: gt-<rig>-crew-<name>
+      return rig ? `gt-${rig}-crew-${agentName}` : agentName
     default:
       return agentName
   }
@@ -171,6 +172,24 @@ function sendToTmux(tmuxSession: string, command: string): Promise<void> {
   })
 }
 
+// Resize tmux pane to match terminal dimensions
+function resizeTmuxPane(tmuxSession: string, cols: number, rows: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Use tmux resize-window to set the size
+    // This works better than resize-pane for our use case
+    exec(
+      `tmux resize-window -t "${tmuxSession}" -x ${cols} -y ${rows} 2>/dev/null || true`,
+      (error) => {
+        if (error) {
+          reject(error)
+        } else {
+          resolve()
+        }
+      }
+    )
+  })
+}
+
 // Send raw keys to tmux session (no Enter added, handles special keys)
 function sendRawKeys(tmuxSession: string, data: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -225,7 +244,7 @@ function sendRawKeys(tmuxSession: string, data: string): Promise<void> {
 }
 
 // Start an agent using gt commands
-function startAgent(agentType: AgentType, rig: string | null): Promise<string> {
+function startAgent(agentType: AgentType, agentName: string, rig: string | null): Promise<string> {
   return new Promise((resolve, reject) => {
     let cmd: string
     switch (agentType) {
@@ -241,13 +260,20 @@ function startAgent(agentType: AgentType, rig: string | null): Promise<string> {
       case 'refinery':
         cmd = rig ? `gt refinery start ${rig}` : ''
         break
+      case 'crew':
+        // gt crew start <rig> <name>
+        cmd = (rig && agentName) ? `gt crew start ${rig} ${agentName}` : ''
+        break
+      case 'polecat':
+        reject(new Error('Polecats are started automatically via gt sling'))
+        return
       default:
         reject(new Error(`Cannot start ${agentType} agents from UI`))
         return
     }
 
     if (!cmd) {
-      reject(new Error('Rig required for this agent type'))
+      reject(new Error('Agent name or rig required for this agent type'))
       return
     }
 
@@ -262,7 +288,7 @@ function startAgent(agentType: AgentType, rig: string | null): Promise<string> {
 }
 
 // Stop an agent using gt commands
-function stopAgent(agentType: AgentType, rig: string | null): Promise<string> {
+function stopAgent(agentType: AgentType, agentName: string, rig: string | null): Promise<string> {
   return new Promise((resolve, reject) => {
     let cmd: string
     switch (agentType) {
@@ -278,13 +304,20 @@ function stopAgent(agentType: AgentType, rig: string | null): Promise<string> {
       case 'refinery':
         cmd = rig ? `gt refinery stop ${rig}` : ''
         break
+      case 'crew':
+        // gt crew stop <rig> <name>
+        cmd = (rig && agentName) ? `gt crew stop ${rig} ${agentName}` : ''
+        break
+      case 'polecat':
+        reject(new Error('Polecats are managed by the witness'))
+        return
       default:
         reject(new Error(`Cannot stop ${agentType} agents from UI`))
         return
     }
 
     if (!cmd) {
-      reject(new Error('Rig required for this agent type'))
+      reject(new Error('Agent name or rig required for this agent type'))
       return
     }
 
@@ -1128,7 +1161,14 @@ wss.on('connection', async (ws, req) => {
           break
 
         case 'resize':
-          // Resize not supported in polling mode
+          // Resize tmux pane to match terminal dimensions
+          if (message.cols && message.rows) {
+            try {
+              await resizeTmuxPane(state.tmuxSession, message.cols, message.rows)
+            } catch (error) {
+              // Silently ignore resize errors
+            }
+          }
           break
 
         case 'refresh':
@@ -1157,7 +1197,7 @@ wss.on('connection', async (ws, req) => {
                 message: `Session "${state.tmuxSession}" is already running`,
               }))
             } else {
-              const result = await startAgent(state.agentType, state.rig)
+              const result = await startAgent(state.agentType, state.agentName, state.rig)
               ws.send(JSON.stringify({
                 type: 'session-started',
                 message: result,
@@ -1196,7 +1236,7 @@ wss.on('connection', async (ws, req) => {
               }))
             } else {
               stopPolling(state)
-              const result = await stopAgent(state.agentType, state.rig)
+              const result = await stopAgent(state.agentType, state.agentName, state.rig)
               ws.send(JSON.stringify({
                 type: 'session-stopped',
                 message: result,

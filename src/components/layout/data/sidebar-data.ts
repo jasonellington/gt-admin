@@ -6,6 +6,7 @@ import {
   Cog,
   Command,
   Users,
+  Monitor,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -40,6 +41,11 @@ export const sidebarData: SidebarData = {
           title: 'Mayor',
           url: '/mayor',
           icon: Crown,
+        },
+        {
+          title: 'Agent View',
+          url: '/agent-view',
+          icon: Monitor,
         },
         {
           title: 'Deacon',

@@ -18,6 +18,7 @@ interface UseTerminalSocketReturn {
   tmuxSession: string | null
   sendCommand: (command: string) => void
   sendInput: (data: string) => void
+  sendResize: (cols: number, rows: number) => void
   startSession: () => void
   stopSession: () => void
   reconnect: () => void
@@ -177,6 +178,16 @@ export function useTerminalSocket({
     }
   }, [])
 
+  const sendResize = useCallback((cols: number, rows: number) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'resize',
+        cols,
+        rows,
+      }))
+    }
+  }, [])
+
   const startSession = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'start' }))
@@ -201,6 +212,7 @@ export function useTerminalSocket({
     tmuxSession,
     sendCommand,
     sendInput,
+    sendResize,
     startSession,
     stopSession,
     reconnect,

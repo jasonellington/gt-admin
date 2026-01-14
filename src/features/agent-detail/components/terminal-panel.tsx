@@ -9,6 +9,7 @@ interface TerminalPanelProps {
   output: string
   error: string | null
   onInput?: (data: string) => void
+  onResize?: (cols: number, rows: number) => void
 }
 
 export function TerminalPanel({
@@ -16,16 +17,19 @@ export function TerminalPanel({
   output,
   error,
   onInput,
+  onResize,
 }: TerminalPanelProps) {
   const terminalRef = useRef<HTMLDivElement>(null)
   const xtermRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
   const onInputRef = useRef(onInput)
+  const onResizeRef = useRef(onResize)
 
-  // Keep onInput ref updated
+  // Keep refs updated
   useEffect(() => {
     onInputRef.current = onInput
-  }, [onInput])
+    onResizeRef.current = onResize
+  }, [onInput, onResize])
 
   // Initialize xterm with ResizeObserver to handle flex containers
   useEffect(() => {
@@ -77,22 +81,27 @@ export function TerminalPanel({
     xtermRef.current = term
     fitAddonRef.current = fitAddon
 
-    // Use ResizeObserver to fit when container has dimensions
-    const resizeObserver = new ResizeObserver(() => {
-      // Only fit if container has dimensions
-      if (container.offsetWidth > 0 && container.offsetHeight > 0) {
-        fitAddon.fit()
-      }
-    })
-    resizeObserver.observe(container)
-
-    // Also handle window resize
-    const handleResize = () => {
+    // Fit terminal to container
+    const fitTerminal = () => {
       if (container.offsetWidth > 0 && container.offsetHeight > 0) {
         fitAddon.fit()
       }
     }
-    window.addEventListener('resize', handleResize)
+
+    // Use ResizeObserver just to fit xterm display
+    const resizeObserver = new ResizeObserver(fitTerminal)
+    resizeObserver.observe(container)
+
+    // Window resize - just fit, no tmux notification
+    window.addEventListener('resize', fitTerminal)
+
+    // ONE-TIME resize notification on mount only
+    setTimeout(() => {
+      fitTerminal()
+      if (onResizeRef.current && term.cols && term.rows) {
+        onResizeRef.current(term.cols, term.rows)
+      }
+    }, 200)
 
     // Handle user input - send to PTY
     term.onData((data) => {
@@ -106,7 +115,7 @@ export function TerminalPanel({
 
     return () => {
       resizeObserver.disconnect()
-      window.removeEventListener('resize', handleResize)
+      window.removeEventListener('resize', fitTerminal)
       if (xtermRef.current) {
         xtermRef.current.dispose()
         xtermRef.current = null
@@ -114,30 +123,17 @@ export function TerminalPanel({
     }
   }, [session])
 
-  // Track previous output to detect changes and append only new content
+  // Track previous output to avoid unnecessary rewrites
   const prevOutputRef = useRef<string>('')
-  const initializedRef = useRef(false)
 
   // Update terminal with new output
   useEffect(() => {
     if (!xtermRef.current || !output) return
 
-    // Only update if content changed
+    // Only update if content actually changed
     if (output !== prevOutputRef.current) {
-      if (!initializedRef.current) {
-        // First time - write full content
-        xtermRef.current.write(output)
-        initializedRef.current = true
-      } else if (output.startsWith(prevOutputRef.current)) {
-        // New content appended - just write the new part
-        const newContent = output.slice(prevOutputRef.current.length)
-        if (newContent) {
-          xtermRef.current.write(newContent)
-        }
-      } else {
-        // Content changed significantly - clear and rewrite
-        xtermRef.current.write('\x1b[2J\x1b[H' + output)
-      }
+      // Clear and rewrite - use escape codes instead of reset()
+      xtermRef.current.write('\x1b[2J\x1b[H' + output)
       prevOutputRef.current = output
     }
   }, [output])
