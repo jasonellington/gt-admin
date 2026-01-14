@@ -14,6 +14,7 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedTownRouteImport } from './routes/_authenticated/town'
 import { Route as AuthenticatedCrewRouteImport } from './routes/_authenticated/crew'
 import { Route as AuthenticatedConvoysRouteImport } from './routes/_authenticated/convoys'
+import { Route as AuthenticatedBeadsRouteImport } from './routes/_authenticated/beads'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors404RouteImport } from './routes/(errors)/404'
@@ -51,6 +52,11 @@ const AuthenticatedCrewRoute = AuthenticatedCrewRouteImport.update({
 const AuthenticatedConvoysRoute = AuthenticatedConvoysRouteImport.update({
   id: '/convoys',
   path: '/convoys',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedBeadsRoute = AuthenticatedBeadsRouteImport.update({
+  id: '/beads',
+  path: '/beads',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const errors503Route = errors503RouteImport.update({
@@ -138,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/beads': typeof AuthenticatedBeadsRoute
   '/convoys': typeof AuthenticatedConvoysRoute
   '/crew': typeof AuthenticatedCrewRoute
   '/town': typeof AuthenticatedTownRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/beads': typeof AuthenticatedBeadsRoute
   '/convoys': typeof AuthenticatedConvoysRoute
   '/crew': typeof AuthenticatedCrewRoute
   '/town': typeof AuthenticatedTownRoute
@@ -180,6 +188,7 @@ export interface FileRoutesById {
   '/(errors)/404': typeof errors404Route
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
+  '/_authenticated/beads': typeof AuthenticatedBeadsRoute
   '/_authenticated/convoys': typeof AuthenticatedConvoysRoute
   '/_authenticated/crew': typeof AuthenticatedCrewRoute
   '/_authenticated/town': typeof AuthenticatedTownRoute
@@ -202,6 +211,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/beads'
     | '/convoys'
     | '/crew'
     | '/town'
@@ -222,6 +232,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/beads'
     | '/convoys'
     | '/crew'
     | '/town'
@@ -243,6 +254,7 @@ export interface FileRouteTypes {
     | '/(errors)/404'
     | '/(errors)/500'
     | '/(errors)/503'
+    | '/_authenticated/beads'
     | '/_authenticated/convoys'
     | '/_authenticated/crew'
     | '/_authenticated/town'
@@ -302,6 +314,13 @@ declare module '@tanstack/react-router' {
       path: '/convoys'
       fullPath: '/convoys'
       preLoaderRoute: typeof AuthenticatedConvoysRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/beads': {
+      id: '/_authenticated/beads'
+      path: '/beads'
+      fullPath: '/beads'
+      preLoaderRoute: typeof AuthenticatedBeadsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/(errors)/503': {
@@ -406,6 +425,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedBeadsRoute: typeof AuthenticatedBeadsRoute
   AuthenticatedConvoysRoute: typeof AuthenticatedConvoysRoute
   AuthenticatedCrewRoute: typeof AuthenticatedCrewRoute
   AuthenticatedTownRoute: typeof AuthenticatedTownRoute
@@ -417,6 +437,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedBeadsRoute: AuthenticatedBeadsRoute,
   AuthenticatedConvoysRoute: AuthenticatedConvoysRoute,
   AuthenticatedCrewRoute: AuthenticatedCrewRoute,
   AuthenticatedTownRoute: AuthenticatedTownRoute,

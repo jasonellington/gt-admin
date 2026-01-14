@@ -570,6 +570,43 @@ async function getRigPolecats(rigName: string): Promise<Array<{
   }
 }
 
+// Get beads list
+async function getBeadsList(): Promise<Array<{
+  id: string
+  title: string
+  type: string
+  status: string
+  priority: number
+  assignee: string | null
+  createdAt: string
+}>> {
+  try {
+    const output = await runCommand('bd list --json 2>/dev/null || echo "[]"')
+    const trimmed = output.trim()
+    if (!trimmed || trimmed === '[]') return []
+    const raw = JSON.parse(trimmed) as Array<{
+      id: string
+      title: string
+      issue_type: string
+      status: string
+      priority: number
+      assignee?: string
+      created_at: string
+    }>
+    return raw.map((bead) => ({
+      id: bead.id,
+      title: bead.title,
+      type: bead.issue_type,
+      status: bead.status,
+      priority: bead.priority,
+      assignee: bead.assignee || null,
+      createdAt: bead.created_at,
+    }))
+  } catch {
+    return []
+  }
+}
+
 // Town status interface
 interface TownStatus {
   town: {
@@ -854,6 +891,19 @@ const server = createServer(async (req, res) => {
     return
   }
 
+  // Beads list
+  if (pathname === '/api/beads' && req.method === 'GET') {
+    try {
+      const beads = await getBeadsList()
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(beads))
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Failed to get beads list' }))
+    }
+    return
+  }
+
   // Town status (full overview)
   if (pathname === '/api/town/status' && req.method === 'GET') {
     try {
@@ -957,6 +1007,7 @@ server.listen(PORT, () => {
   console.log(`    GET  /api/convoys/:id     - Convoy details`)
   console.log(`    GET  /api/polecats        - All polecats`)
   console.log(`    GET  /api/crew            - All crew members`)
+  console.log(`    GET  /api/beads           - All beads`)
 })
 
 wss.on('connection', async (ws, req) => {
