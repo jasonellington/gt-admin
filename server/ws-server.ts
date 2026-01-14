@@ -731,9 +731,115 @@ const server = createServer(async (req, res) => {
         res.writeHead(404, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ error: 'Convoy not found' }))
       }
-    } catch (error) {
+    } catch (_error) {
       res.writeHead(500, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error: 'Failed to get convoy' }))
+    }
+    return
+  }
+
+  // GT Status (full town status via gt status --json)
+  if (pathname === '/api/status' && req.method === 'GET') {
+    try {
+      const output = await runCommand('gt status --json 2>/dev/null || echo "{}"')
+      const data = JSON.parse(output.trim() || '{}')
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(data))
+    } catch (_error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Failed to get status' }))
+    }
+    return
+  }
+
+  // Mail inbox
+  if (pathname === '/api/mail/inbox' && req.method === 'GET') {
+    try {
+      const output = await runCommand('gt mail inbox --json 2>/dev/null || echo "[]"')
+      const data = JSON.parse(output.trim() || '[]')
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(data))
+    } catch (_error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Failed to get mail inbox' }))
+    }
+    return
+  }
+
+  // Hook status
+  if (pathname === '/api/hook' && req.method === 'GET') {
+    try {
+      const output = await runCommand('gt hook --json 2>/dev/null || echo "{}"')
+      const data = JSON.parse(output.trim() || '{}')
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(data))
+    } catch (_error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Failed to get hook status' }))
+    }
+    return
+  }
+
+  // Rig polecats
+  const rigPolecatsMatch = pathname?.match(/^\/api\/rigs\/([^/]+)\/polecats$/)
+  if (rigPolecatsMatch && req.method === 'GET') {
+    try {
+      const rig = rigPolecatsMatch[1]
+      const output = await runCommand(`gt polecat list ${rig} --json 2>/dev/null || echo "[]"`)
+      const data = JSON.parse(output.trim() || '[]')
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(data))
+    } catch (_error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Failed to get polecats' }))
+    }
+    return
+  }
+
+  // Rig crew
+  const rigCrewMatch = pathname?.match(/^\/api\/rigs\/([^/]+)\/crew$/)
+  if (rigCrewMatch && req.method === 'GET') {
+    try {
+      const rig = rigCrewMatch[1]
+      const output = await runCommand(`gt crew list --rig ${rig} --json 2>/dev/null || echo "[]"`)
+      const data = JSON.parse(output.trim() || '[]')
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(data))
+    } catch (_error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Failed to get crew' }))
+    }
+    return
+  }
+
+  // Rig merge queue
+  const rigMqMatch = pathname?.match(/^\/api\/rigs\/([^/]+)\/merge-queue$/)
+  if (rigMqMatch && req.method === 'GET') {
+    try {
+      const rig = rigMqMatch[1]
+      const output = await runCommand(`gt mq list ${rig} --json 2>/dev/null || echo "[]"`)
+      const data = JSON.parse(output.trim() || '[]')
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(data))
+    } catch (_error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Failed to get merge queue' }))
+    }
+    return
+  }
+
+  // Rig refinery status
+  const rigRefineryMatch = pathname?.match(/^\/api\/rigs\/([^/]+)\/refinery\/status$/)
+  if (rigRefineryMatch && req.method === 'GET') {
+    try {
+      const rig = rigRefineryMatch[1]
+      const output = await runCommand(`gt refinery status ${rig} --json 2>/dev/null || echo "{}"`)
+      const data = JSON.parse(output.trim() || '{}')
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(data))
+    } catch (_error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Failed to get refinery status' }))
     }
     return
   }
