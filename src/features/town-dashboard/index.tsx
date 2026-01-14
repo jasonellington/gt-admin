@@ -60,13 +60,83 @@ export function TownDashboard() {
           </div>
         </Header>
         <Main>
+          {/* Header skeleton */}
           <div className='mb-6'>
             <Skeleton className='h-8 w-48' />
             <Skeleton className='mt-2 h-4 w-64' />
           </div>
-          <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+
+          {/* Summary cards skeleton */}
+          <div className='mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
             {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className='h-32' />
+              <Card key={i}>
+                <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+                  <Skeleton className='h-4 w-16' />
+                  <Skeleton className='h-4 w-4' />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className='h-8 w-12' />
+                  <Skeleton className='mt-2 h-3 w-24' />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Tabs skeleton */}
+          <div className='mb-4'>
+            <Skeleton className='h-9 w-64' />
+          </div>
+
+          {/* Town agents skeleton */}
+          <Card className='mb-6'>
+            <CardHeader>
+              <Skeleton className='h-5 w-32' />
+              <Skeleton className='mt-1 h-4 w-48' />
+            </CardHeader>
+            <CardContent>
+              <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+                {[1, 2].map((i) => (
+                  <div key={i} className='flex items-center gap-3 rounded-lg border p-3'>
+                    <Skeleton className='h-8 w-8 rounded-full' />
+                    <div className='flex-1'>
+                      <Skeleton className='h-4 w-16' />
+                      <Skeleton className='mt-1 h-3 w-12' />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Rigs skeleton */}
+          <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+            {[1].map((i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <div className='flex items-center gap-2'>
+                    <Skeleton className='h-5 w-5' />
+                    <Skeleton className='h-5 w-24' />
+                  </div>
+                </CardHeader>
+                <CardContent className='space-y-4'>
+                  <div className='grid grid-cols-2 gap-2'>
+                    {[1, 2].map((j) => (
+                      <div key={j} className='flex items-center gap-2 rounded-md border p-2'>
+                        <Skeleton className='h-6 w-6' />
+                        <div className='flex-1'>
+                          <Skeleton className='h-4 w-16' />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <Skeleton className='mb-2 h-4 w-20' />
+                    <div className='flex gap-1'>
+                      <Skeleton className='h-5 w-14' />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </Main>

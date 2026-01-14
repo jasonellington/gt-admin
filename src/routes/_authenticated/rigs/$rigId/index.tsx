@@ -74,8 +74,78 @@ function RigOverviewPage() {
           </div>
         </Header>
         <Main>
-          <Skeleton className='h-8 w-48' />
-          <Skeleton className='mt-4 h-32' />
+          {/* Header skeleton */}
+          <div className='mb-6'>
+            <div className='flex items-center gap-3'>
+              <Skeleton className='h-8 w-8' />
+              <div>
+                <Skeleton className='h-8 w-32' />
+                <Skeleton className='mt-1 h-4 w-24' />
+              </div>
+            </div>
+          </div>
+
+          {/* Tabs skeleton */}
+          <div className='mb-4'>
+            <Skeleton className='h-9 w-72' />
+          </div>
+
+          {/* Witness/Refinery cards skeleton */}
+          <div className='mb-4 grid gap-4 md:grid-cols-2'>
+            {[1, 2].map((i) => (
+              <Card key={i}>
+                <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+                  <Skeleton className='h-4 w-20' />
+                  <Skeleton className='h-5 w-5' />
+                </CardHeader>
+                <CardContent>
+                  <div className='flex items-center gap-2'>
+                    <Skeleton className='h-2 w-2 rounded-full' />
+                    <Skeleton className='h-4 w-16' />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Crew members skeleton */}
+          <Card className='mb-4'>
+            <CardHeader>
+              <div className='flex items-center gap-2'>
+                <Skeleton className='h-5 w-5' />
+                <Skeleton className='h-5 w-32' />
+              </div>
+              <Skeleton className='mt-1 h-4 w-48' />
+            </CardHeader>
+            <CardContent>
+              <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
+                {[1].map((i) => (
+                  <div key={i} className='flex items-center gap-3 rounded-lg border p-3'>
+                    <Skeleton className='h-10 w-10 rounded-full' />
+                    <div>
+                      <Skeleton className='h-4 w-20' />
+                      <Skeleton className='mt-1 h-3 w-14' />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Polecats skeleton */}
+          <Card>
+            <CardHeader>
+              <Skeleton className='h-5 w-24' />
+              <Skeleton className='mt-1 h-4 w-40' />
+            </CardHeader>
+            <CardContent>
+              <div className='flex flex-wrap gap-2'>
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className='h-6 w-20' />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </Main>
       </>
     )
