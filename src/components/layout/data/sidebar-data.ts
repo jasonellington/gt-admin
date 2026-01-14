@@ -1,8 +1,9 @@
 import {
-  Building2,
   Truck,
-  Bot,
   Crown,
+  Dog,
+  LayoutDashboard,
+  Cog,
   Command,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
@@ -22,27 +23,55 @@ export const sidebarData: SidebarData = {
   ],
   navGroups: [
     {
-      title: 'Gas Town',
+      title: 'Town',
       items: [
-        {
-          title: 'Dashboard',
-          url: '/town',
-          icon: Building2,
-        },
-        {
-          title: 'Convoys',
-          url: '/convoys',
-          icon: Truck,
-        },
-        {
-          title: 'Agents',
-          url: '/agents/mayor',
-          icon: Bot,
-        },
         {
           title: 'Mayor',
           url: '/mayor',
           icon: Crown,
+        },
+        {
+          title: 'Deacon',
+          url: '/agents/deacon',
+          icon: Dog,
+        },
+        {
+          title: 'Overview',
+          url: '/town',
+          icon: LayoutDashboard,
+        },
+      ],
+    },
+    {
+      title: 'Rigs',
+      items: [
+        {
+          title: 'gt_admin',
+          icon: Cog,
+          items: [
+            {
+              title: 'Overview',
+              url: '/rigs/gt_admin',
+            },
+            {
+              title: 'Witness',
+              url: '/agents/witness',
+            },
+            {
+              title: 'Refinery',
+              url: '/agents/refinery',
+            },
+          ],
+        },
+      ],
+    },
+    {
+      title: 'Convoys',
+      items: [
+        {
+          title: 'Active Convoys',
+          url: '/convoys',
+          icon: Truck,
         },
       ],
     },
