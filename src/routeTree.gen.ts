@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedTownRouteImport } from './routes/_authenticated/town'
+import { Route as AuthenticatedCrewRouteImport } from './routes/_authenticated/crew'
 import { Route as AuthenticatedConvoysRouteImport } from './routes/_authenticated/convoys'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
@@ -40,6 +41,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
 const AuthenticatedTownRoute = AuthenticatedTownRouteImport.update({
   id: '/town',
   path: '/town',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCrewRoute = AuthenticatedCrewRouteImport.update({
+  id: '/crew',
+  path: '/crew',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedConvoysRoute = AuthenticatedConvoysRouteImport.update({
@@ -133,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/convoys': typeof AuthenticatedConvoysRoute
+  '/crew': typeof AuthenticatedCrewRoute
   '/town': typeof AuthenticatedTownRoute
   '/': typeof AuthenticatedIndexRoute
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
@@ -152,6 +159,7 @@ export interface FileRoutesByTo {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/convoys': typeof AuthenticatedConvoysRoute
+  '/crew': typeof AuthenticatedCrewRoute
   '/town': typeof AuthenticatedTownRoute
   '/': typeof AuthenticatedIndexRoute
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
@@ -173,6 +181,7 @@ export interface FileRoutesById {
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
   '/_authenticated/convoys': typeof AuthenticatedConvoysRoute
+  '/_authenticated/crew': typeof AuthenticatedCrewRoute
   '/_authenticated/town': typeof AuthenticatedTownRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
@@ -194,6 +203,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/convoys'
+    | '/crew'
     | '/town'
     | '/'
     | '/agents/$agentId'
@@ -213,6 +223,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/convoys'
+    | '/crew'
     | '/town'
     | '/'
     | '/agents/$agentId'
@@ -233,6 +244,7 @@ export interface FileRouteTypes {
     | '/(errors)/500'
     | '/(errors)/503'
     | '/_authenticated/convoys'
+    | '/_authenticated/crew'
     | '/_authenticated/town'
     | '/_authenticated/'
     | '/_authenticated/agents/$agentId'
@@ -276,6 +288,13 @@ declare module '@tanstack/react-router' {
       path: '/town'
       fullPath: '/town'
       preLoaderRoute: typeof AuthenticatedTownRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/crew': {
+      id: '/_authenticated/crew'
+      path: '/crew'
+      fullPath: '/crew'
+      preLoaderRoute: typeof AuthenticatedCrewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/convoys': {
@@ -388,6 +407,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedConvoysRoute: typeof AuthenticatedConvoysRoute
+  AuthenticatedCrewRoute: typeof AuthenticatedCrewRoute
   AuthenticatedTownRoute: typeof AuthenticatedTownRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAgentsAgentIdRoute: typeof AuthenticatedAgentsAgentIdRoute
@@ -398,6 +418,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedConvoysRoute: AuthenticatedConvoysRoute,
+  AuthenticatedCrewRoute: AuthenticatedCrewRoute,
   AuthenticatedTownRoute: AuthenticatedTownRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedAgentsAgentIdRoute: AuthenticatedAgentsAgentIdRoute,

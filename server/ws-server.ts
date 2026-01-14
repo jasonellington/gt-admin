@@ -323,6 +323,44 @@ async function getAllAgentStatuses(): Promise<Array<{
   return results
 }
 
+// Get all crew members across all rigs
+async function getAllCrew(): Promise<Array<{
+  name: string
+  rig: string
+  branch: string
+  path: string
+  hasSession: boolean
+  gitClean: boolean
+  currentTask: string | null
+}>> {
+  try {
+    const output = await runCommand('gt crew list --json 2>/dev/null || echo "[]"')
+    const trimmed = output.trim()
+    if (!trimmed || trimmed === '[]') return []
+
+    const raw = JSON.parse(trimmed) as Array<{
+      name: string
+      rig: string
+      branch: string
+      path: string
+      has_session: boolean
+      git_clean: boolean
+    }>
+
+    return raw.map((c) => ({
+      name: c.name,
+      rig: c.rig,
+      branch: c.branch,
+      path: c.path,
+      hasSession: c.has_session,
+      gitClean: c.git_clean,
+      currentTask: null, // TODO: Could fetch hooked work per crew member
+    }))
+  } catch {
+    return []
+  }
+}
+
 // Run a command and return stdout
 function runCommand(cmd: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -341,8 +379,8 @@ async function getConvoyList(): Promise<Array<{
   id: string
   name: string
   status: 'active' | 'completed'
-  issueCount: number
-  completedCount: number
+  completed: number
+  total: number
 }>> {
   try {
     const output = await runCommand('gt convoy status --json 2>/dev/null || echo "[]"')
@@ -366,16 +404,16 @@ async function getConvoyList(): Promise<Array<{
             id: c.id,
             name: c.title,
             status: c.status === 'open' ? 'active' as const : 'completed' as const,
-            issueCount: detail.total || 0,
-            completedCount: detail.completed || 0,
+            total: detail.total || 0,
+            completed: detail.completed || 0,
           }
         } catch {
           return {
             id: c.id,
             name: c.title,
             status: c.status === 'open' ? 'active' as const : 'completed' as const,
-            issueCount: 0,
-            completedCount: 0,
+            total: 0,
+            completed: 0,
           }
         }
       })
@@ -803,6 +841,19 @@ const server = createServer(async (req, res) => {
     return
   }
 
+  // Crew list
+  if (pathname === '/api/crew' && req.method === 'GET') {
+    try {
+      const crew = await getAllCrew()
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(crew))
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Failed to get crew list' }))
+    }
+    return
+  }
+
   // Town status (full overview)
   if (pathname === '/api/town/status' && req.method === 'GET') {
     try {
@@ -886,75 +937,6 @@ const server = createServer(async (req, res) => {
     return
   }
 
-  // Rig detail
-  const rigMatch = pathname?.match(/^\/api\/rigs\/([^/]+)$/)
-  if (rigMatch && req.method === 'GET') {
-    try {
-      const rigName = rigMatch[1]
-      const status = await getTownStatus()
-      const rig = status.rigs.find((r) => r.name === rigName)
-      if (rig) {
-        res.writeHead(200, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify(rig))
-      } else {
-        res.writeHead(404, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify({ error: 'Rig not found' }))
-      }
-    } catch (error) {
-      res.writeHead(500, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ error: 'Failed to get rig status' }))
-    }
-    return
-  }
-
-  // Rig merge queue
-  const rigMqMatch = pathname?.match(/^\/api\/rigs\/([^/]+)\/mq$/)
-  if (rigMqMatch && req.method === 'GET') {
-    try {
-      const rigName = rigMqMatch[1]
-      const output = await runCommand(`gt mq list ${rigName} --json 2>/dev/null || echo "[]"`)
-      const trimmed = output.trim()
-      const mqItems = (!trimmed || trimmed === '[]') ? [] : JSON.parse(trimmed)
-      res.writeHead(200, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify(mqItems))
-    } catch (error) {
-      res.writeHead(500, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ error: 'Failed to get merge queue' }))
-    }
-    return
-  }
-
-  // Rig polecats with task info
-  const rigPolecatsMatch = pathname?.match(/^\/api\/rigs\/([^/]+)\/polecats$/)
-  if (rigPolecatsMatch && req.method === 'GET') {
-    try {
-      const rigName = rigPolecatsMatch[1]
-      const output = await runCommand(`gt polecat list ${rigName} 2>/dev/null || echo ""`)
-      const polecats: Array<{ name: string; rig: string; online: boolean; tmuxSession: string }> = []
-      if (output && !output.includes('No polecats')) {
-        const lines = output.split('\n')
-        for (const line of lines) {
-          const match = line.match(/[●○]\s+(\w+)\/(\w+)/)
-          if (match) {
-            const [, rig, name] = match
-            polecats.push({
-              name,
-              rig,
-              tmuxSession: `gt-${rig}-${name}`,
-              online: line.includes('●'),
-            })
-          }
-        }
-      }
-      res.writeHead(200, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify(polecats))
-    } catch (error) {
-      res.writeHead(500, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ error: 'Failed to get rig polecats' }))
-    }
-    return
-  }
-
   res.writeHead(404)
   res.end('Not found')
 })
@@ -974,6 +956,7 @@ server.listen(PORT, () => {
   console.log(`    POST /api/convoys         - Create convoy`)
   console.log(`    GET  /api/convoys/:id     - Convoy details`)
   console.log(`    GET  /api/polecats        - All polecats`)
+  console.log(`    GET  /api/crew            - All crew members`)
 })
 
 wss.on('connection', async (ws, req) => {
@@ -1160,10 +1143,10 @@ wss.on('connection', async (ws, req) => {
 
 process.on('SIGINT', () => {
   console.log('\nShutting down...')
-  for (const [ws, state] of clients) {
+  clients.forEach((state, ws) => {
     stopPolling(state)
     ws.close()
-  }
+  })
   wss.close()
   process.exit(0)
 })
