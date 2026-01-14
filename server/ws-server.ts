@@ -435,6 +435,103 @@ async function createConvoy(name: string, issues: string[]): Promise<{ id: strin
   }
 }
 
+// Get merge queue items for a rig
+async function getMergeQueueItems(rigName: string): Promise<Array<{
+  id: string
+  source: string
+  target: string
+  status: string
+  priority: number
+  createdAt: string
+}>> {
+  try {
+    const output = await runCommand(`gt mq list ${rigName} --json 2>/dev/null || echo "[]"`)
+    const trimmed = output.trim()
+    if (!trimmed || trimmed === '[]') return []
+    const raw = JSON.parse(trimmed) as Array<{
+      id: string
+      source_branch: string
+      target_branch: string
+      status: string
+      priority: number
+      created_at: string
+    }>
+    return raw.map((item) => ({
+      id: item.id,
+      source: item.source_branch,
+      target: item.target_branch,
+      status: item.status,
+      priority: item.priority,
+      createdAt: item.created_at,
+    }))
+  } catch {
+    return []
+  }
+}
+
+// Get polecats for a specific rig with detailed info
+async function getRigPolecats(rigName: string): Promise<Array<{
+  name: string
+  rig: string
+  tmuxSession: string
+  online: boolean
+  hookBead: string | null
+  currentTask: string | null
+}>> {
+  try {
+    const output = await runCommand(`gt polecat list ${rigName} --json 2>/dev/null || echo "[]"`)
+    const trimmed = output.trim()
+    if (!trimmed || trimmed === '[]' || trimmed.includes('No polecats')) return []
+
+    // Try to parse JSON output
+    try {
+      const raw = JSON.parse(trimmed) as Array<{
+        name: string
+        rig: string
+        online: boolean
+        hook_bead?: string
+        current_task?: string
+      }>
+      return raw.map((p) => ({
+        name: p.name,
+        rig: p.rig || rigName,
+        tmuxSession: `gt-${rigName}-${p.name}`,
+        online: p.online,
+        hookBead: p.hook_bead || null,
+        currentTask: p.current_task || null,
+      }))
+    } catch {
+      // Fall back to text parsing if JSON fails
+      const polecats: Array<{
+        name: string
+        rig: string
+        tmuxSession: string
+        online: boolean
+        hookBead: string | null
+        currentTask: string | null
+      }> = []
+      const lines = output.split('\n')
+      for (const line of lines) {
+        const match = line.match(/[●○]\s+(\w+)\/(\w+)/)
+        if (match) {
+          const [, rig, name] = match
+          polecats.push({
+            name,
+            rig,
+            tmuxSession: `gt-${rig}-${name}`,
+            online: line.includes('●'),
+            hookBead: null,
+            currentTask: null,
+          })
+        }
+      }
+      return polecats
+    }
+  } catch {
+    return []
+  }
+}
+
 // Town status interface
 interface TownStatus {
   town: {
@@ -719,6 +816,57 @@ const server = createServer(async (req, res) => {
     return
   }
 
+  // Rig detail
+  const rigMatch = pathname?.match(/^\/api\/rigs\/([^/]+)$/)
+  if (rigMatch && req.method === 'GET') {
+    try {
+      const rigName = rigMatch[1]
+      const status = await getTownStatus()
+      const rig = status.rigs.find((r) => r.name === rigName)
+      if (rig) {
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify(rig))
+      } else {
+        res.writeHead(404, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Rig not found' }))
+      }
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Failed to get rig status' }))
+    }
+    return
+  }
+
+  // Rig merge queue
+  const rigMqMatch = pathname?.match(/^\/api\/rigs\/([^/]+)\/mq$/)
+  if (rigMqMatch && req.method === 'GET') {
+    try {
+      const rigName = rigMqMatch[1]
+      const mqItems = await getMergeQueueItems(rigName)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(mqItems))
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Failed to get merge queue' }))
+    }
+    return
+  }
+
+  // Rig polecats
+  const rigPolecatsMatch = pathname?.match(/^\/api\/rigs\/([^/]+)\/polecats$/)
+  if (rigPolecatsMatch && req.method === 'GET') {
+    try {
+      const rigName = rigPolecatsMatch[1]
+      const polecats = await getRigPolecats(rigName)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(polecats))
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Failed to get rig polecats' }))
+    }
+    return
+  }
+
   // Convoy detail
   const convoyMatch = pathname?.match(/^\/api\/convoys\/(.+)$/)
   if (convoyMatch && req.method === 'GET') {
@@ -747,7 +895,16 @@ const wss = new WebSocketServer({ server })
 server.listen(PORT, () => {
   console.log(`Gas Town server running on http://localhost:${PORT}`)
   console.log(`  WebSocket: ws://localhost:${PORT}?agent=<name>&type=<type>&rig=<rig>`)
-  console.log(`  REST API:  http://localhost:${PORT}/api/agents/status`)
+  console.log(`  REST API:`)
+  console.log(`    GET  /api/town/status     - Full town overview`)
+  console.log(`    GET  /api/agents/status   - Agent statuses`)
+  console.log(`    GET  /api/rigs/:name      - Rig details`)
+  console.log(`    GET  /api/rigs/:name/mq   - Rig merge queue`)
+  console.log(`    GET  /api/rigs/:name/polecats - Rig polecats`)
+  console.log(`    GET  /api/convoys         - Convoy list`)
+  console.log(`    POST /api/convoys         - Create convoy`)
+  console.log(`    GET  /api/convoys/:id     - Convoy details`)
+  console.log(`    GET  /api/polecats        - All polecats`)
 })
 
 wss.on('connection', async (ws, req) => {
