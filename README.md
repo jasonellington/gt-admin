@@ -1,119 +1,91 @@
-# Shadcn Admin Dashboard
+# GT Admin - Gas Town Web UI
 
-Admin Dashboard UI crafted with Shadcn and Vite. Built with responsiveness and accessibility in mind.
+A web-based admin dashboard for [Gas Town](https://github.com/steveyegge/gastown), Steve Yegge's multi-agent orchestrator for Claude Code.
 
-![alt text](public/images/shadcn-admin.png)
+> **Status**: Early development. Gas Town itself is not stable yet, so this UI uses mock data. The backend integration will be added once Gas Town stabilizes.
 
-[![Sponsored by Clerk](https://img.shields.io/badge/Sponsored%20by-Clerk-5b6ee1?logo=clerk)](https://go.clerk.com/GttUAaK)
+## What is Gas Town?
 
-I've been creating dashboard UIs at work and for my personal projects. I always wanted to make a reusable collection of dashboard UI for future projects; and here it is now. While I've created a few custom components, some of the code is directly adapted from ShadcnUI examples.
+Gas Town is a Go-based orchestrator that enables developers to manage 20-30+ parallel Claude Code instances productively. It coordinates seven distinct agent roles (Mayor, Deacon, Witness, Refinery, Polecats, Dogs, Crew) across multiple project "rigs" to swarm work, manage merge queues, and maintain durable workflows.
 
-> This is not a starter project (template) though. I'll probably make one in the future.
+For detailed concepts, see [GASTOWN.md](./GASTOWN.md).
 
-## Features
+## Project Purpose
 
-- Light/dark mode
-- Responsive
-- Accessible
-- With built-in Sidebar component
-- Global search command
-- 10+ pages
-- Extra custom components
-- RTL support
-
-<details>
-<summary>Customized Components (click to expand)</summary>
-
-This project uses Shadcn UI components, but some have been slightly modified for better RTL (Right-to-Left) support and other improvements. These customized components differ from the original Shadcn UI versions.
-
-If you want to update components using the Shadcn CLI (e.g., `npx shadcn@latest add <component>`), it's generally safe for non-customized components. For the listed customized ones, you may need to manually merge changes to preserve the project's modifications and avoid overwriting RTL support or other updates.
-
-> If you don't require RTL support, you can safely update the 'RTL Updated Components' via the Shadcn CLI, as these changes are primarily for RTL compatibility. The 'Modified Components' may have other customizations to consider.
-
-### Modified Components
-
-- scroll-area
-- sonner
-- separator
-
-### RTL Updated Components
-
-- alert-dialog
-- calendar
-- command
-- dialog
-- dropdown-menu
-- select
-- table
-- sheet
-- sidebar
-- switch
-
-**Notes:**
-
-- **Modified Components**: These have general updates, potentially including RTL adjustments.
-- **RTL Updated Components**: These have specific changes for RTL language support (e.g., layout, positioning).
-- For implementation details, check the source files in `src/components/ui/`.
-- All other Shadcn UI components in the project are standard and can be safely updated via the CLI.
-
-</details>
+This repo provides a modern web UI for Gas Town to:
+- Monitor town status, rigs, and agents
+- View and manage convoys (work orders)
+- Track beads (issues) and merge queues
+- Interact with crew members
+- View activity feeds in real-time
 
 ## Tech Stack
 
-**UI:** [ShadcnUI](https://ui.shadcn.com) (TailwindCSS + RadixUI)
+Built on [shadcn-admin](https://github.com/satnaing/shadcn-admin):
 
-**Build Tool:** [Vite](https://vitejs.dev/)
+- **UI**: [ShadcnUI](https://ui.shadcn.com) (TailwindCSS + RadixUI)
+- **Build Tool**: [Vite](https://vitejs.dev/)
+- **Routing**: [TanStack Router](https://tanstack.com/router/latest)
+- **Type Checking**: [TypeScript](https://www.typescriptlang.org/)
+- **Tables**: [TanStack Table](https://tanstack.com/table/latest)
+- **Icons**: [Lucide Icons](https://lucide.dev/icons/), [Tabler Icons](https://tabler.io/icons)
 
-**Routing:** [TanStack Router](https://tanstack.com/router/latest)
+## Development
 
-**Type Checking:** [TypeScript](https://www.typescriptlang.org/)
+### Prerequisites
 
-**Linting/Formatting:** [ESLint](https://eslint.org/) & [Prettier](https://prettier.io/)
+- Node.js 18+
+- pnpm
 
-**Icons:** [Lucide Icons](https://lucide.dev/icons/), [Tabler Icons](https://tabler.io/icons) (Brand icons only)
-
-**Auth (partial):** [Clerk](https://go.clerk.com/GttUAaK)
-
-## Run Locally
-
-Clone the project
-
-```bash
-  git clone https://github.com/satnaing/shadcn-admin.git
-```
-
-Go to the project directory
+### Run Locally
 
 ```bash
-  cd shadcn-admin
+# Install dependencies
+pnpm install
+
+# Start dev server
+pnpm run dev
+
+# Build for production
+pnpm run build
 ```
 
-Install dependencies
+### Project Structure
 
-```bash
-  pnpm install
+```
+src/
+├── components/          # Reusable UI components
+│   ├── ui/             # shadcn/ui primitives
+│   ├── data-table/     # Table components
+│   └── layout/         # App layout components
+├── features/           # Feature modules
+│   ├── town-dashboard/ # Main dashboard
+│   ├── agents/         # Agents list/detail
+│   ├── beads/          # Beads (issues) management
+│   ├── convoys/        # Convoy tracking
+│   ├── crews/          # Crew management
+│   └── mayor/          # Mayor interface
+├── lib/                # Utilities
+└── routes/             # TanStack Router routes
 ```
 
-Start the server
+## Documentation
 
-```bash
-  pnpm run dev
-```
+- [GASTOWN.md](./GASTOWN.md) - Gas Town concepts and terminology
+- [DEVELOPMENT.md](./DEVELOPMENT.md) - Development guidelines and mock data patterns
+- [CLAUDE.md](./CLAUDE.md) - Instructions for Claude agents working on this repo
 
-## Sponsoring this project ❤️
+## Contributing
 
-If you find this project helpful or use this in your own work, consider [sponsoring me](https://github.com/sponsors/satnaing) to support development and maintenance. You can [buy me a coffee](https://buymeacoffee.com/satnaing) as well. Don’t worry, every penny helps. Thank you! 🙏
+This project is in early development. Contributions welcome!
 
-For questions or sponsorship inquiries, feel free to reach out at [satnaingdev@gmail.com](mailto:satnaingdev@gmail.com).
+## References
 
-### Current Sponsor
-
-- [Clerk](https://go.clerk.com/GttUAaK) - authentication and user management for the modern web
-
-## Author
-
-Crafted with 🤍 by [@satnaing](https://github.com/satnaing)
+- [Gas Town GitHub](https://github.com/steveyegge/gastown)
+- [Welcome to Gas Town](https://steve-yegge.medium.com/welcome-to-gas-town-4f25ee16dd04)
+- [Gas Town Emergency User Manual](https://steve-yegge.medium.com/gas-town-emergency-user-manual-cf0e4556d74b)
+- [shadcn-admin template](https://github.com/satnaing/shadcn-admin)
 
 ## License
 
-Licensed under the [MIT License](https://choosealicense.com/licenses/mit/)
+MIT
